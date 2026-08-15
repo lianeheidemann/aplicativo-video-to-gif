@@ -126,10 +126,7 @@ class SizePanel extends StatelessWidget {
               const SizedBox(height: 8),
               _TargetsRow(estimate: estimate, onFitTo: onFitTo),
               const SizedBox(height: 8),
-              Text(
-                suggestion,
-                style: theme.textTheme.bodySmall,
-              ),
+              Text(suggestion, style: theme.textTheme.bodySmall),
               const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: onConvert,
@@ -171,19 +168,14 @@ class _TargetsRow extends StatelessWidget {
             avatar: Icon(
               fits ? Icons.check_circle : Icons.error_outline,
               size: 16,
-              color: fits
-                  ? const Color(0xFF2E7D32)
-                  : theme.colorScheme.error,
+              color: fits ? const Color(0xFF2E7D32) : theme.colorScheme.error,
             ),
-            label: Text(
-              target.name,
-              style: theme.textTheme.labelSmall,
-            ),
+            label: Text(target.name, style: theme.textTheme.labelSmall),
             onPressed: fits ? null : () => onFitTo(target),
             tooltip: fits
                 ? 'Cabe no limite de ${SizeEstimate.formatBytes(target.limitBytes)}'
                 : 'Toque para ajustar e caber em '
-                    '${SizeEstimate.formatBytes(target.limitBytes)}',
+                      '${SizeEstimate.formatBytes(target.limitBytes)}',
           );
         },
       ),

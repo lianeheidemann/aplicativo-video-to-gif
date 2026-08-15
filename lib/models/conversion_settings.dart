@@ -87,11 +87,11 @@ class CropRect {
   }
 
   CropRect copyWith({int? x, int? y, int? width, int? height}) => CropRect(
-        x: x ?? this.x,
-        y: y ?? this.y,
-        width: width ?? this.width,
-        height: height ?? this.height,
-      );
+    x: x ?? this.x,
+    y: y ?? this.y,
+    width: width ?? this.width,
+    height: height ?? this.height,
+  );
 }
 
 /// Proporções oferecidas na tela de recorte.
@@ -154,7 +154,16 @@ class ConversionSettings {
   static const fpsOptions = <int>[5, 8, 10, 12, 15, 20, 24, 30];
   static const widthOptions = <int>[160, 240, 320, 400, 480, 640, 720, 1080];
   static const colorOptions = <int>[32, 64, 96, 128, 192, 256];
-  static const speedOptions = <double>[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0];
+  static const speedOptions = <double>[
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    3.0,
+    4.0,
+  ];
 
   /// Duração do trecho selecionado, antes de aplicar a velocidade.
   double get sourceDurationSeconds {

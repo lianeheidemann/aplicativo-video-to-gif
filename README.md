@@ -64,10 +64,6 @@ Requer Flutter 3.44+ e o Android SDK (API 36) com NDK instalados.
 git clone https://github.com/lianeheidemann/aplicativo-video-to-gif-1.git
 cd aplicativo-video-to-gif-1
 
-# Gera os arquivos locais que não vão para o Git
-# (local.properties, wrapper do Gradle, ícones padrão).
-flutter create . --platforms=android --org=br.com.lianeheidemann
-
 flutter pub get
 flutter test
 flutter run
@@ -79,9 +75,10 @@ Para gerar o pacote da loja:
 flutter build appbundle --release
 ```
 
-> O `flutter create .` só preenche o que falta — ele não sobrescreve o
-> `AndroidManifest.xml`, o `build.gradle.kts` nem o `MainActivity.kt` que já
-> estão no repositório.
+> O `gradlew` e o `local.properties` não são versionados (convenção do
+> Flutter) — a própria ferramenta os recria no primeiro build. Se der erro de
+> NDK, ajuste `ndkVersion` em `android/app/build.gradle.kts` para a versão
+> que você tem instalada; a mensagem de erro informa qual é.
 
 ## Publicar na Play Store
 
@@ -124,11 +121,27 @@ lib/
     └── widgets/
 
 test/
-└── size_estimator_test.dart        # 30+ testes do modelo de estimativa
+├── size_estimator_test.dart        # 29 testes do modelo de estimativa
+└── size_panel_test.dart            # 9 testes do painel de peso
+
+loja/                               # material pronto da ficha da Play Store
+├── FICHA_DA_LOJA.md                # textos dentro dos limites de caracteres
+├── icone_512.png
+└── grafico_destaque_1024x500.png
+
+tool/
+└── gerar_icones.py                 # gera ícone, adaptativo e imagens da loja
 ```
 
 O `size_estimator.dart` é Dart puro, sem dependência do Flutter nem do
 FFmpeg — por isso dá para testá-lo inteiro sem emulador.
+
+## Qualidade
+
+`flutter analyze` limpo e **38 testes** passando. O workflow em
+`.github/workflows/ci.yml` roda formatação, análise, testes e um build do APK
+de debug a cada push — esse último serve para pegar erro de Gradle, de fusão
+de manifesto e de empacotamento das bibliotecas nativas do FFmpeg.
 
 ## Stack
 

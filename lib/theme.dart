@@ -5,10 +5,7 @@ import 'models/size_estimate.dart';
 const _seed = Color(0xFF7C53C9);
 
 ThemeData buildTheme(Brightness brightness) {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: _seed,
-    brightness: brightness,
-  );
+  final scheme = ColorScheme.fromSeed(seedColor: _seed, brightness: brightness);
 
   return ThemeData(
     useMaterial3: true,

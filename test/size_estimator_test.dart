@@ -99,8 +99,10 @@ void main() {
 
   group('monotonicidade da estimativa', () {
     test('mais FPS pesa mais', () {
-      expect(_bytes(_base.copyWith(fps: 20)),
-          greaterThan(_bytes(_base.copyWith(fps: 10))));
+      expect(
+        _bytes(_base.copyWith(fps: 20)),
+        greaterThan(_bytes(_base.copyWith(fps: 10))),
+      );
     });
 
     test('mas dobrar o FPS custa menos que dobrar o arquivo', () {
@@ -112,27 +114,38 @@ void main() {
     });
 
     test('mais largura pesa mais', () {
-      expect(_bytes(_base.copyWith(targetWidth: 640)),
-          greaterThan(_bytes(_base.copyWith(targetWidth: 320))));
+      expect(
+        _bytes(_base.copyWith(targetWidth: 640)),
+        greaterThan(_bytes(_base.copyWith(targetWidth: 320))),
+      );
     });
 
     test('mais duração pesa mais', () {
-      expect(_bytes(_base.copyWith(endSeconds: 12)), greaterThan(_bytes(_base)));
+      expect(
+        _bytes(_base.copyWith(endSeconds: 12)),
+        greaterThan(_bytes(_base)),
+      );
     });
 
     test('mais cores pesa mais', () {
-      expect(_bytes(_base.copyWith(colors: 256)),
-          greaterThan(_bytes(_base.copyWith(colors: 64))));
+      expect(
+        _bytes(_base.copyWith(colors: 256)),
+        greaterThan(_bytes(_base.copyWith(colors: 64))),
+      );
     });
 
     test('mais pontilhado pesa mais', () {
-      expect(_bytes(_base.copyWith(dither: DitherMode.floydSteinberg)),
-          greaterThan(_bytes(_base.copyWith(dither: DitherMode.none))));
+      expect(
+        _bytes(_base.copyWith(dither: DitherMode.floydSteinberg)),
+        greaterThan(_bytes(_base.copyWith(dither: DitherMode.none))),
+      );
     });
 
     test('paleta por quadro pesa mais que paleta única', () {
-      expect(_bytes(_base.copyWith(palette: PaletteMode.perFrame)),
-          greaterThan(_bytes(_base.copyWith(palette: PaletteMode.global))));
+      expect(
+        _bytes(_base.copyWith(palette: PaletteMode.perFrame)),
+        greaterThan(_bytes(_base.copyWith(palette: PaletteMode.global))),
+      );
     });
 
     test('acelerar reduz o peso porque o GIF fica mais curto', () {
@@ -207,11 +220,7 @@ void main() {
   group('ajuste automático para um alvo', () {
     test('chega abaixo do alvo quando é possível', () {
       const target = 3 * 1024 * 1024;
-      final heavy = _base.copyWith(
-        endSeconds: 20,
-        fps: 30,
-        targetWidth: 720,
-      );
+      final heavy = _base.copyWith(endSeconds: 20, fps: 30, targetWidth: 720);
       expect(_bytes(heavy), greaterThan(target));
 
       final fitted = SizeEstimator.fitToTarget(
@@ -262,10 +271,7 @@ void main() {
     });
 
     test('a faixa é mais estreita quando houve calibração', () {
-      final rough = SizeEstimator.estimate(
-        settings: _base,
-        video: _video,
-      );
+      final rough = SizeEstimator.estimate(settings: _base, video: _video);
       final calibrated = SizeEstimator.estimate(
         settings: _base,
         video: _video,

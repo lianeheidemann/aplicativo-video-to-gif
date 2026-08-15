@@ -80,9 +80,9 @@ class FfmpegService {
 
     final streams = info.getStreams();
     final video = streams.cast<StreamInformation?>().firstWhere(
-          (s) => s?.getType() == 'video',
-          orElse: () => null,
-        );
+      (s) => s?.getType() == 'video',
+      orElse: () => null,
+    );
     if (video == null) {
       throw FfmpegException('Este arquivo não tem faixa de vídeo.');
     }
@@ -205,13 +205,17 @@ class FfmpegService {
     final filter = buildVideoFilter(settings, video);
     return [
       '-y',
-      '-ss', _seconds(settings.startSeconds),
-      '-t', _seconds(settings.sourceDurationSeconds),
-      '-i', video.path,
+      '-ss',
+      _seconds(settings.startSeconds),
+      '-t',
+      _seconds(settings.sourceDurationSeconds),
+      '-i',
+      video.path,
       '-vf',
       '$filter,palettegen=max_colors=${settings.colors}'
           ':stats_mode=${settings.palette.statsMode}',
-      '-frames:v', '1',
+      '-frames:v',
+      '1',
       palettePath,
     ];
   }
@@ -474,7 +478,9 @@ class FfmpegService {
     final maxStart = start + duration - window;
     return fractions.take(safeCount).map((f) {
       final position = start + duration * f;
-      return position > maxStart ? (maxStart < start ? start : maxStart) : position;
+      return position > maxStart
+          ? (maxStart < start ? start : maxStart)
+          : position;
     }).toList();
   }
 
@@ -488,21 +494,24 @@ class FfmpegService {
     int width = 720,
   }) async {
     final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/quadro_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path =
+        '${dir.path}/quadro_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
     try {
-      await _run(
-        [
-          '-y',
-          '-ss', _seconds(atSeconds),
-          '-i', video.path,
-          '-frames:v', '1',
-          '-vf', 'scale=$width:-2:flags=lanczos',
-          '-q:v', '3',
-          path,
-        ],
-        step: 'extração de quadro',
-      );
+      await _run([
+        '-y',
+        '-ss',
+        _seconds(atSeconds),
+        '-i',
+        video.path,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=$width:-2:flags=lanczos',
+        '-q:v',
+        '3',
+        path,
+      ], step: 'extração de quadro');
     } on FfmpegException {
       return null;
     } finally {

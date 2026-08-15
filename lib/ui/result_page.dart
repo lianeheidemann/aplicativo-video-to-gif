@@ -129,11 +129,11 @@ class _ResultPageState extends State<ResultPage> {
                     '${widget.settings.outputDurationSeconds.toStringAsFixed(1)}s '
                         'a ${widget.settings.fps} FPS',
                   ),
+                  _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
                   _row(
-                    'Tempo de conversão',
-                    '${result.elapsed.inSeconds}s',
+                    'Previsto antes de converter',
+                    widget.estimate.formatted,
                   ),
-                  _row('Previsto antes de converter', widget.estimate.formatted),
                   _row('Diferença da previsão', _accuracy()),
                 ],
               ),
@@ -153,8 +153,8 @@ class _ResultPageState extends State<ResultPage> {
               _saving
                   ? 'Salvando…'
                   : _saved
-                      ? 'Salvo na galeria'
-                      : 'Salvar na galeria',
+                  ? 'Salvo na galeria'
+                  : 'Salvar na galeria',
             ),
           ),
           const SizedBox(height: 10),

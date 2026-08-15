@@ -33,8 +33,9 @@ class _EditorPageState extends State<EditorPage> {
 
   /// Começa com um palpite tirado do bitrate do arquivo; vira uma medição
   /// real assim que o usuário toca em "Medir".
-  late ComplexityProfile _profile =
-      SizeEstimator.profileFromSource(widget.video);
+  late ComplexityProfile _profile = SizeEstimator.profileFromSource(
+    widget.video,
+  );
 
   VideoPlayerController? _player;
   bool _measuring = false;
@@ -43,10 +44,10 @@ class _EditorPageState extends State<EditorPage> {
   VideoInfo get _video => widget.video;
 
   SizeEstimate get _estimate => SizeEstimator.estimate(
-        settings: _settings,
-        video: _video,
-        profile: _profile,
-      );
+    settings: _settings,
+    video: _video,
+    profile: _profile,
+  );
 
   @override
   void initState() {
@@ -227,8 +228,7 @@ class _EditorPageState extends State<EditorPage> {
                     } else {
                       await player.seekTo(
                         Duration(
-                          milliseconds:
-                              (_settings.startSeconds * 1000).round(),
+                          milliseconds: (_settings.startSeconds * 1000).round(),
                         ),
                       );
                       await player.play();
@@ -267,7 +267,8 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.content_cut,
       title: 'Duração',
       value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)}s',
-      hint: 'Arraste as pontas para cortar o começo e o fim. '
+      hint:
+          'Arraste as pontas para cortar o começo e o fim. '
           'É o controle que mais muda o peso.',
       child: Column(
         children: [
@@ -276,10 +277,7 @@ class _EditorPageState extends State<EditorPage> {
             max: _video.durationSeconds,
             divisions: (_video.durationSeconds * 10).round().clamp(1, 2000),
             values: RangeValues(start, end),
-            labels: RangeLabels(
-              _formatSeconds(start),
-              _formatSeconds(end),
-            ),
+            labels: RangeLabels(_formatSeconds(start), _formatSeconds(end)),
             onChanged: (values) {
               // Impede que as pontas se cruzem ou colem.
               if (values.end - values.start < 0.2) return;
@@ -306,7 +304,8 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _aspectSection() {
     final crop = _settings.crop;
-    final canMove = crop != null &&
+    final canMove =
+        crop != null &&
         (crop.width < _video.width || crop.height < _video.height);
 
     return LabeledSection(
@@ -380,7 +379,8 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.fast_forward,
       title: 'Velocidade',
       value: '${_formatSpeed(_settings.speed)}x',
-      hint: 'Acelerar encurta o GIF e economiza peso; '
+      hint:
+          'Acelerar encurta o GIF e economiza peso; '
           'câmera lenta deixa mais longo e mais pesado.',
       child: OptionChips<double>(
         options: ConversionSettings.speedOptions,
@@ -403,7 +403,8 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.photo_size_select_large,
       title: 'Resolução',
       value: '$width×$height',
-      hint: 'Reduzir a largura pela metade corta o peso em cerca de 75%, '
+      hint:
+          'Reduzir a largura pela metade corta o peso em cerca de 75%, '
           'porque a área cai ao quadrado.',
       child: OptionChips<int>(
         options: available,
@@ -436,10 +437,7 @@ class _EditorPageState extends State<EditorPage> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
         shape: const Border(),
-        leading: Icon(
-          Icons.tune,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+        leading: Icon(Icons.tune, color: Theme.of(context).colorScheme.primary),
         title: const Text(
           'Qualidade das cores',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -487,12 +485,12 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _subLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  );
 
   void _showHelp() {
     showModalBottomSheet<void>(
@@ -606,21 +604,21 @@ class _HelpSheet extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget item(String title, String body) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(body, style: theme.textTheme.bodyMedium),
-            ],
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        );
+          const SizedBox(height: 4),
+          Text(body, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+    );
 
     return SafeArea(
       child: SingleChildScrollView(

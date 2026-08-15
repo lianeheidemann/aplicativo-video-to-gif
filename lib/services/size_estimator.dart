@@ -77,20 +77,20 @@ class SizeEstimator {
 
   /// Pontilhado é ruído: quanto mais, pior comprime.
   static double ditherFactor(DitherMode dither) => switch (dither) {
-        DitherMode.none => 0.72,
-        DitherMode.bayer3 => 0.88,
-        DitherMode.bayer5 => 1.00,
-        DitherMode.sierra => 1.45,
-        DitherMode.floydSteinberg => 1.55,
-      };
+    DitherMode.none => 0.72,
+    DitherMode.bayer3 => 0.88,
+    DitherMode.bayer5 => 1.00,
+    DitherMode.sierra => 1.45,
+    DitherMode.floydSteinberg => 1.55,
+  };
 
   /// Paleta por quadro impede reaproveitar a tabela de cores e cresce o
   /// arquivo; paleta focada no movimento economiza um pouco.
   static double paletteFactor(PaletteMode palette) => switch (palette) {
-        PaletteMode.global => 1.00,
-        PaletteMode.movement => 0.95,
-        PaletteMode.perFrame => 1.30,
-      };
+    PaletteMode.global => 1.00,
+    PaletteMode.movement => 0.95,
+    PaletteMode.perFrame => 1.30,
+  };
 
   /// Acelerar o vídeo aumenta a diferença entre quadros vizinhos, o que
   /// encarece cada quadro. Câmera lenta faz o contrário.
@@ -245,7 +245,11 @@ class SizeEstimator {
     final colorLadder = ConversionSettings.colorOptions.reversed
         .where((c) => c < current.colors)
         .toList();
-    const ditherLadder = [DitherMode.bayer5, DitherMode.bayer3, DitherMode.none];
+    const ditherLadder = [
+      DitherMode.bayer5,
+      DitherMode.bayer3,
+      DitherMode.none,
+    ];
 
     // Alterna entre as alavancas para degradar de forma equilibrada, em vez
     // de destruir uma dimensão só.
@@ -311,27 +315,33 @@ class SizeEstimator {
     final options = <String, int>{};
 
     if (settings.fps > 8) {
-      final lower = ConversionSettings.fpsOptions
-          .lastWhere((f) => f < settings.fps, orElse: () => settings.fps);
+      final lower = ConversionSettings.fpsOptions.lastWhere(
+        (f) => f < settings.fps,
+        orElse: () => settings.fps,
+      );
       if (lower < settings.fps) {
-        options['baixar para $lower FPS'] =
-            bytesIf(settings.copyWith(fps: lower));
+        options['baixar para $lower FPS'] = bytesIf(
+          settings.copyWith(fps: lower),
+        );
       }
     }
 
     if (settings.targetWidth > 160) {
-      final lower = ConversionSettings.widthOptions
-          .lastWhere((w) => w < settings.targetWidth,
-              orElse: () => settings.targetWidth);
+      final lower = ConversionSettings.widthOptions.lastWhere(
+        (w) => w < settings.targetWidth,
+        orElse: () => settings.targetWidth,
+      );
       if (lower < settings.targetWidth) {
-        options['reduzir a largura para $lower px'] =
-            bytesIf(settings.copyWith(targetWidth: lower));
+        options['reduzir a largura para $lower px'] = bytesIf(
+          settings.copyWith(targetWidth: lower),
+        );
       }
     }
 
     if (settings.sourceDurationSeconds > 3) {
       final shorter = settings.copyWith(
-        endSeconds: settings.startSeconds + settings.sourceDurationSeconds * 0.7,
+        endSeconds:
+            settings.startSeconds + settings.sourceDurationSeconds * 0.7,
       );
       options['cortar 30% da duração'] = bytesIf(shorter);
     }

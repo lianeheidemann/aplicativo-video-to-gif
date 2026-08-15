@@ -27,7 +27,9 @@ class OutputService {
     try {
       await Gal.putImage(gif.path, album: _albumName);
     } on GalException catch (e) {
-      throw OutputException('Não foi possível salvar na galeria: ${e.type.message}');
+      throw OutputException(
+        'Não foi possível salvar na galeria: ${e.type.message}',
+      );
     }
   }
 

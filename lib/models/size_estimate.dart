@@ -13,27 +13,26 @@ enum EstimateConfidence {
 
 extension EstimateConfidenceLabel on EstimateConfidence {
   String get label => switch (this) {
-        EstimateConfidence.rough => 'Estimativa aproximada',
-        EstimateConfidence.fromSource => 'Estimativa aproximada',
-        EstimateConfidence.calibrated => 'Estimativa medida',
-      };
+    EstimateConfidence.rough => 'Estimativa aproximada',
+    EstimateConfidence.fromSource => 'Estimativa aproximada',
+    EstimateConfidence.calibrated => 'Estimativa medida',
+  };
 
   String get explanation => switch (this) {
-        EstimateConfidence.rough ||
-        EstimateConfidence.fromSource =>
-          'Baseada em um vídeo típico. Toque em "Medir de verdade" para um '
-              'número preciso.',
-        EstimateConfidence.calibrated =>
-          'Medida codificando um trecho curto deste vídeo com estas mesmas '
-              'configurações.',
-      };
+    EstimateConfidence.rough || EstimateConfidence.fromSource =>
+      'Baseada em um vídeo típico. Toque em "Medir de verdade" para um '
+          'número preciso.',
+    EstimateConfidence.calibrated =>
+      'Medida codificando um trecho curto deste vídeo com estas mesmas '
+          'configurações.',
+  };
 
   /// Margem de erro aplicada para montar a faixa mínimo–máximo.
   double get relativeMargin => switch (this) {
-        EstimateConfidence.rough => 0.55,
-        EstimateConfidence.fromSource => 0.40,
-        EstimateConfidence.calibrated => 0.15,
-      };
+    EstimateConfidence.rough => 0.55,
+    EstimateConfidence.fromSource => 0.40,
+    EstimateConfidence.calibrated => 0.15,
+  };
 }
 
 /// Classificação do peso, para o usuário não precisar saber o que é "muito".

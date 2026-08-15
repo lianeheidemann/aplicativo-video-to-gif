@@ -105,25 +105,26 @@ Está em `android/app/src/main/AndroidManifest.xml`, no atributo
 
 ### 3.3 O ícone
 
-O `flutter create` gera um ícone provisório do Flutter. Para publicar você
-precisa do seu:
+**Já está pronto.** O repositório traz um ícone próprio (não o do Flutter) em
+todas as densidades, mais a versão adaptativa do Android 8+:
+
+```
+android/app/src/main/res/mipmap-*/ic_launcher.png
+android/app/src/main/res/mipmap-*/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+assets/icone.png                                 (mestre 1024×1024)
+```
+
+Se quiser mudar o desenho ou as cores, edite `tool/gerar_icones.py` e rode:
 
 ```bash
-flutter pub add dev:flutter_launcher_icons
+pip install Pillow
+python3 tool/gerar_icones.py
 ```
 
-Crie um PNG quadrado de **1024×1024** em `assets/icone.png`, adicione ao
-`pubspec.yaml`:
-
-```yaml
-flutter_launcher_icons:
-  android: true
-  image_path: "assets/icone.png"
-  adaptive_icon_background: "#7C53C9"
-  adaptive_icon_foreground: "assets/icone.png"
-```
-
-E rode `dart run flutter_launcher_icons`.
+O script regera o ícone em todas as densidades **e** as duas imagens da ficha
+da loja (`loja/icone_512.png` e `loja/grafico_destaque_1024x500.png`), o que
+mantém tudo coerente.
 
 ---
 
@@ -218,54 +219,23 @@ tarefas obrigatórias. Vale a pena preencher tudo antes de subir o AAB.
 
 ### 7.1 Ficha da loja (o que o usuário vê)
 
-| Item | Especificação | Sugestão para este app |
+Os textos já estão escritos, dentro dos limites de caracteres e prontos para
+copiar e colar: **[`loja/FICHA_DA_LOJA.md`](../loja/FICHA_DA_LOJA.md)**.
+
+As duas imagens obrigatórias também já estão geradas:
+
+| Item | Especificação | Arquivo |
 |---|---|---|
-| Nome do app | até 30 caracteres | `Vídeo em GIF` |
-| Descrição curta | até 80 caracteres | `Converta vídeos em GIF com controle total de peso e qualidade.` |
-| Descrição completa | até 4000 caracteres | veja o modelo abaixo |
-| Ícone | PNG 512×512, 32 bits, até 1 MB | o mesmo do app |
-| Gráfico de destaque | PNG/JPG 1024×500 | banner simples com o nome |
-| Capturas de tela | **mínimo 2**, até 8 · lado menor ≥ 320 px, maior ≤ 3840 px | 4 a 6 telas do app |
+| Nome do app | até 30 caracteres | em `loja/FICHA_DA_LOJA.md` |
+| Descrição curta | até 80 caracteres | em `loja/FICHA_DA_LOJA.md` |
+| Descrição completa | até 4000 caracteres | em `loja/FICHA_DA_LOJA.md` |
+| Ícone | PNG 512×512, 32 bits, até 1 MB | ✅ `loja/icone_512.png` |
+| Gráfico de destaque | PNG/JPG 1024×500 | ✅ `loja/grafico_destaque_1024x500.png` |
+| Capturas de tela | **mínimo 2**, até 8 · lado menor ≥ 320 px, maior ≤ 3840 px | ⬜ você precisa tirar |
 
-Tire as capturas com o app rodando:
-
-```bash
-flutter run --release
-# com o app na tela desejada:
-adb exec-out screencap -p > captura1.png
-```
-
-**Modelo de descrição completa:**
-
-```
-Transforme qualquer vídeo em GIF direto no seu celular, sem enviar nada para
-a internet.
-
-O QUE VOCÊ CONTROLA
-• Corte o começo e o fim do vídeo
-• Escolha o formato da janela: 1:1, 4:5, 9:16, 16:9 ou o original
-• Acelere até 4x ou deixe em câmera lenta
-• Ajuste a resolução, de 160 px a 1080 px de largura
-• Escolha os quadros por segundo, de 5 a 30
-• Ajuste fino de cores, paleta e suavização
-
-SAIBA O PESO ANTES DE CONVERTER
-Nada de esperar a conversão para descobrir que o arquivo ficou grande demais.
-O app mostra o peso estimado enquanto você mexe nos controles e avisa se o
-GIF cabe no WhatsApp, no X/Twitter ou no Discord. Se não couber, um toque
-ajusta as configurações para caber.
-
-QUALIDADE DE VERDADE
-A conversão usa paleta otimizada em duas passagens: em vez das cores
-genéricas do formato GIF, o app calcula as 256 cores que o seu vídeo
-realmente usa.
-
-PRIVACIDADE
-Tudo acontece no seu aparelho. O app não tem permissão de internet e não
-coleta nenhum dado.
-
-Formatos aceitos: MP4, MOV, AVI, MKV, WEBM, 3GP e outros.
-```
+As capturas são a única parte que depende de você, porque exigem o app
+rodando num aparelho. O roteiro sugerido (quais telas capturar, em que ordem)
+e os comandos do `adb` para limpar a barra de status estão no mesmo arquivo.
 
 ### 7.2 Segurança dos dados
 
@@ -417,17 +387,26 @@ você vai precisar subir esse número e reenviar.
 
 ## Checklist final antes de enviar
 
-- [ ] `flutter test` passando
+Já resolvido no repositório:
+
+- [x] Ícone próprio em todas as densidades + ícone adaptativo
+- [x] Gráfico de destaque 1024×500 e ícone 512×512 da loja
+- [x] Textos da ficha escritos e dentro dos limites de caracteres
+- [x] Aviso de licença do FFmpeg dentro do app (*Sobre → Ver licenças*)
+- [x] Modelo de política de privacidade pronto para publicar
+- [x] `targetSdk = 36`, exigido a partir de 31/08/2026
+- [x] `flutter analyze` limpo e testes passando (CI roda a cada push)
+
+Depende de você:
+
+- [ ] Keystore criado **e com backup em dois lugares**
 - [ ] `flutter build appbundle --release` gerando o `.aab`
 - [ ] APK de release testado num celular de verdade
-- [ ] Keystore com backup em dois lugares
 - [ ] `versionCode` maior que o do envio anterior
-- [ ] Ícone próprio (não o do Flutter)
-- [ ] 2 a 8 capturas de tela + gráfico de destaque 1024×500
+- [ ] 2 a 8 capturas de tela do app rodando
 - [ ] Política de privacidade publicada numa URL pública
 - [ ] Formulário de Segurança dos Dados respondido
 - [ ] Classificação de conteúdo concluída
-- [ ] Aviso de licença do FFmpeg dentro do app (ver `LICENCAS.md`)
 - [ ] 12+ testadores convidados no teste fechado
 
 ---
