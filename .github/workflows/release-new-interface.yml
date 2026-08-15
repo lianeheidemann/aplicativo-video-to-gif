@@ -1,5 +1,6 @@
 name: Release new-interface v1.1.0
 
+# Retry after updating SizePanel tests for the redesigned summary field.
 on:
   push:
     branches: ['new-interface']
