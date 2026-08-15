@@ -34,6 +34,7 @@ Future<void> _pumpPanel(
         bottomNavigationBar: SizePanel(
           estimate: estimate,
           suggestion: 'Dica: 40% mais leve se baixar para 10 FPS.',
+          summary: '480×270 px · 12 FPS · 6.0 s · 256 cores',
           measuring: measuring,
           onMeasure: onMeasure ?? () {},
           onConvert: onConvert ?? () {},
