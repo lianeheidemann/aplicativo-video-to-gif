@@ -22,7 +22,8 @@ plugins {
     // incompatível com a forma como app/build.gradle.kts está escrito.
     // O Flutter aceita de 8.2.2 até 8.13.x.
     id("com.android.application") version "8.13.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
+    // O Flutter 3.47 exige Kotlin 2.2.20 no mínimo.
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 include(":app")

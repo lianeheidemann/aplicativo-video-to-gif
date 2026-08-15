@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -36,10 +37,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
         // Necessário para APIs de java.time em minSdk < 26.
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -101,6 +98,14 @@ android {
         jniLibs {
             useLegacyPackaging = false
         }
+    }
+}
+
+// A partir do Kotlin 2.2 o bloco `kotlinOptions` dentro de `android` está
+// obsoleto; a configuração do alvo da JVM passou para cá.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
