@@ -1,0 +1,15 @@
+# Copie este arquivo para android/key.properties e preencha com os dados do
+# SEU keystore. NUNCA comite o arquivo real nem o .jks no Git.
+#
+# Para gerar o keystore (uma única vez na vida do app):
+#
+#   keytool -genkey -v -keystore ~/chave-upload-videotogif.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Guarde o .jks e as senhas em lugar seguro (gerenciador de senhas + backup).
+# Perder essa chave significa perder a capacidade de atualizar o app.
+
+storePassword=SENHA_DO_KEYSTORE
+keyPassword=SENHA_DA_CHAVE
+keyAlias=upload
+storeFile=/caminho/absoluto/para/chave-upload-videotogif.jks

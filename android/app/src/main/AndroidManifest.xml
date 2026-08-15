@@ -1,0 +1,84 @@
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Este app funciona 100% offline: a conversão roda no próprio aparelho.
+      Repare que NÃO existe a permissão android.permission.INTERNET aqui.
+      Isso simplifica muito o formulário de Segurança dos Dados na Play Store
+      (nenhum dado sai do dispositivo) e é um bom argumento na descrição.
+
+      Também NÃO pedimos READ_MEDIA_VIDEO nem READ_EXTERNAL_STORAGE: o vídeo é
+      escolhido pelo seletor do próprio sistema, que devolve acesso apenas ao
+      arquivo selecionado. Isso evita cair na política de "Permissões de fotos
+      e vídeos" da Play Store, que exige formulário de justificativa e vídeo
+      de demonstração na revisão. Se um dia você adicionar uma galeria interna
+      que lista todos os vídeos do aparelho, aí a permissão passa a ser
+      necessária — e a declaração também.
+
+      As três linhas abaixo removem permissões que algumas dependências
+      declaram por conta própria durante a fusão dos manifestos.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        tools:node="remove" />
+
+    <!--
+      Única permissão que sobra: salvar o GIF na galeria no Android 9 ou
+      anterior. Do Android 10 em diante o MediaStore cuida disso sem permissão.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <application
+        android:label="Vídeo em GIF"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Permite receber um vídeo compartilhado de outro app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

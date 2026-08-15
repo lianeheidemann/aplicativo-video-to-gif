@@ -1,0 +1,166 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+
+import '../models/conversion_settings.dart';
+import '../services/ffmpeg_service.dart';
+import 'editor_page.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final _ffmpeg = FfmpegService();
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _pickVideo() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      // O seletor do sistema devolve acesso só ao arquivo escolhido, por isso
+      // o app não precisa de permissão de leitura de mídia.
+      final picked = await FilePicker.pickFile(
+        type: FileType.video,
+        dialogTitle: 'Escolha um vídeo',
+      );
+
+      final path = picked?.path;
+      if (path == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
+      final video = await _ffmpeg.probe(path);
+      if (!mounted) return;
+
+      setState(() => _loading = false);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EditorPage(
+            video: video,
+            initialSettings: ConversionSettings.recommendedFor(video),
+          ),
+        ),
+      );
+    } on FfmpegException catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.message;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Não foi possível abrir este vídeo.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Sobre e licenças',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => showAboutDialog(
+              context: context,
+              applicationName: 'Vídeo em GIF',
+              applicationVersion: '1.0.0',
+              applicationLegalese:
+                  'Conversão feita no próprio aparelho com FFmpeg (LGPL). '
+                  'Nenhum vídeo é enviado para a internet.',
+            ),
+          ),
+        ],
+      ),
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  Icons.gif_box_outlined,
+                  size: 96,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Vídeo em GIF',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Corte, ajuste o tamanho e a velocidade — e veja quanto o '
+                  'GIF vai pesar antes de converter.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                if (_error != null) ...[
+                  Card(
+                    color: theme.colorScheme.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                FilledButton.icon(
+                  onPressed: _loading ? null : _pickVideo,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.video_library_outlined),
+                  label: Text(_loading ? 'Abrindo…' : 'Escolher vídeo'),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Funciona com MP4, MOV, AVI, MKV, WEBM e 3GP.\n'
+                  'Tudo acontece no seu aparelho: nenhum vídeo é enviado '
+                  'para a internet.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

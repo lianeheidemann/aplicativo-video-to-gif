@@ -1,0 +1,31 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# O pubspec.lock é versionado de propósito: este repositório é um aplicativo,
+# não uma biblioteca, e travar as versões garante que o pacote enviado para a
+# Play Store seja reproduzível.
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+*.iml
+
+# Chaves de assinatura — NUNCA comitar
+android/key.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+.vscode/
+*.log
+
+# Arquivos gerados pelo Flutter a cada "pub get"
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

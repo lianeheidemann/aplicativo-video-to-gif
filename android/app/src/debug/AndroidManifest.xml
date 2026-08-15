@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      A permissão de internet existe SÓ no build de debug, porque o hot reload
+      do Flutter conversa com a máquina de desenvolvimento pela rede.
+      Ela não entra no APK/AAB de release.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

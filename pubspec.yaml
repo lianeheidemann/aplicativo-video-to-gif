@@ -1,0 +1,38 @@
+name: video_to_gif
+description: >-
+  Conversor de vídeo para GIF com corte de duração, recorte de proporção,
+  controle de velocidade, resolução, FPS e estimativa de peso antes da conversão.
+publish_to: "none"
+
+# version = <versionName>+<versionCode>
+# O número depois do "+" é o versionCode do Android e PRECISA aumentar a
+# cada envio para a Play Store, senão o upload é recusado.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # FFmpeg empacotado para Flutter.
+  # IMPORTANTE: usamos a variante "_min", que é LGPL-3.0 e NÃO contém
+  # componentes GPL (x264, x265, xvid...). Isso permite publicar o app com
+  # código fechado. Ver docs/LICENCAS.md antes de trocar de variante.
+  ffmpeg_kit_flutter_new_min: ^3.6.2
+
+  file_picker: ^12.0.0
+  video_player: ^2.14.0
+  path_provider: ^2.1.6
+  share_plus: ^13.3.0
+  gal: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
