@@ -104,10 +104,11 @@ class AspectPreset {
 
   static const presets = <AspectPreset>[
     AspectPreset('Original', null),
-    AspectPreset('1:1', 1.0, hint: 'Quadrado — perfis e stickers'),
-    AspectPreset('4:5', 4 / 5, hint: 'Feed vertical'),
-    AspectPreset('9:16', 9 / 16, hint: 'Stories e Reels'),
+    AspectPreset('1:1', 1.0, hint: 'Quadrado'),
+    AspectPreset('4:5', 4 / 5, hint: 'Retrato'),
+    AspectPreset('9:16', 9 / 16, hint: 'Stories'),
     AspectPreset('16:9', 16 / 9, hint: 'Paisagem'),
+    // Mantidos para compatibilidade com configurações/recortes existentes.
     AspectPreset('4:3', 4 / 3, hint: 'Clássico'),
     AspectPreset('3:2', 3 / 2, hint: 'Foto'),
   ];
@@ -128,60 +129,44 @@ class ConversionSettings {
     this.loop = true,
   });
 
-  /// Trecho do vídeo original que vai virar GIF (em segundos).
   final double startSeconds;
   final double endSeconds;
-
-  /// 0.25x (câmera lenta) até 4x (acelerado).
   final double speed;
-
-  /// Quadros por segundo do GIF.
   final int fps;
-
-  /// Largura desejada da saída, em pixels. A altura sai da proporção.
   final int targetWidth;
-
-  /// Recorte opcional, em pixels do vídeo de exibição.
   final CropRect? crop;
-
-  /// Tamanho da paleta, de 2 a 256 cores.
   final int colors;
-
   final DitherMode dither;
   final PaletteMode palette;
   final bool loop;
 
-  static const fpsOptions = <int>[5, 8, 10, 12, 15, 20, 24, 30];
-  static const widthOptions = <int>[160, 240, 320, 400, 480, 640, 720, 1080];
+  /// Presets exibidos no editor redesenhado.
+  static const fpsOptions = <int>[5, 8, 10, 12, 15, 20, 24];
+  static const widthOptions = <int>[160, 240, 320, 400, 480, 640, 800];
   static const colorOptions = <int>[32, 64, 96, 128, 192, 256];
+  static const primaryColorOptions = <int>[64, 128, 256];
   static const speedOptions = <double>[
     0.25,
     0.5,
     0.75,
     1.0,
+    1.25,
     1.5,
     2.0,
-    3.0,
-    4.0,
   ];
 
-  /// Duração do trecho selecionado, antes de aplicar a velocidade.
   double get sourceDurationSeconds {
     final d = endSeconds - startSeconds;
     return d < 0 ? 0 : d;
   }
 
-  /// Duração final do GIF: acelerar o vídeo encurta o resultado.
   double get outputDurationSeconds => sourceDurationSeconds / speed;
 
-  /// Número de quadros que o GIF vai conter.
   int get frameCount {
     final n = (outputDurationSeconds * fps).round();
     return n < 1 ? 1 : n;
   }
 
-  /// Dimensões finais em pixels, já arredondadas para números pares
-  /// (exigência do redimensionador do FFmpeg) e sem ampliar o vídeo.
   (int, int) outputDimensions(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     final srcHeight = crop?.height ?? video.height;
@@ -196,7 +181,6 @@ class ConversionSettings {
     return (w < 2 ? 2 : w, h < 2 ? 2 : h);
   }
 
-  /// Quanto a imagem encolheu em relação ao recorte de origem (0..1).
   double scaleRatio(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     if (srcWidth <= 0) return 1;
@@ -231,9 +215,6 @@ class ConversionSettings {
     );
   }
 
-  /// Configuração inicial sugerida a partir do vídeo escolhido: no máximo
-  /// 10 segundos, largura de 480 px (ou menos, se o vídeo for pequeno) e
-  /// 12 fps — combinação que costuma dar um GIF fluido e leve.
   factory ConversionSettings.recommendedFor(VideoInfo video) {
     const maxSeconds = 10.0;
     final end = video.durationSeconds < maxSeconds
