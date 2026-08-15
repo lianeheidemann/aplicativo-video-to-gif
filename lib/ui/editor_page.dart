@@ -12,6 +12,12 @@ import 'converting_page.dart';
 import 'widgets/labeled_section.dart';
 import 'widgets/size_panel.dart';
 
+const _customAspectPreset = AspectPreset(
+  'Personalizado',
+  -1,
+  hint: 'Largura e altura livres',
+);
+
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -41,10 +47,10 @@ class _EditorPageState extends State<EditorPage> {
   VideoInfo get _video => widget.video;
 
   SizeEstimate get _estimate => SizeEstimator.estimate(
-    settings: _settings,
-    video: _video,
-    profile: _profile,
-  );
+        settings: _settings,
+        video: _video,
+        profile: _profile,
+      );
 
   @override
   void initState() {
@@ -260,7 +266,8 @@ class _EditorPageState extends State<EditorPage> {
                         if (player.value.isPlaying) {
                           await player.pause();
                         } else {
-                          final position = player.value.position.inMilliseconds / 1000;
+                          final position =
+                              player.value.position.inMilliseconds / 1000;
                           if (position < _settings.startSeconds ||
                               position >= _settings.endSeconds) {
                             await _seekPreview(_settings.startSeconds);
@@ -302,7 +309,8 @@ class _EditorPageState extends State<EditorPage> {
     return AnimatedBuilder(
       animation: player,
       builder: (context, _) {
-        final duration = _video.durationSeconds <= 0 ? 1.0 : _video.durationSeconds;
+        final duration =
+            _video.durationSeconds <= 0 ? 1.0 : _video.durationSeconds;
         final current = player.value.position.inMilliseconds / 1000.0;
         final start = (_settings.startSeconds / duration).clamp(0.0, 1.0);
         final end = (_settings.endSeconds / duration).clamp(0.0, 1.0);
@@ -327,7 +335,8 @@ class _EditorPageState extends State<EditorPage> {
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapDown: (details) {
-                      final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
+                      final ratio =
+                          (details.localPosition.dx / width).clamp(0.0, 1.0);
                       _seekPreview(ratio * duration);
                     },
                     child: SizedBox(
@@ -370,11 +379,19 @@ class _EditorPageState extends State<EditorPage> {
                           ),
                           Positioned(
                             left: (width - 2) * start,
-                            child: Container(width: 2, height: 18, color: Colors.white70),
+                            child: Container(
+                              width: 2,
+                              height: 18,
+                              color: Colors.white70,
+                            ),
                           ),
                           Positioned(
                             left: (width - 2) * end,
-                            child: Container(width: 2, height: 18, color: Colors.white70),
+                            child: Container(
+                              width: 2,
+                              height: 18,
+                              color: Colors.white70,
+                            ),
                           ),
                         ],
                       ),
@@ -466,75 +483,300 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _aspectSection() {
     final crop = _settings.crop;
-    final canMove = crop != null &&
-        (crop.width < _video.width || crop.height < _video.height);
-    final visiblePresets = AspectPreset.presets.take(5).toList();
+    final visiblePresets = <AspectPreset>[
+      ...AspectPreset.presets.take(5),
+      _customAspectPreset,
+    ];
 
     return LabeledSection(
       icon: Icons.crop_rounded,
       title: 'Formato da janela',
       value: _aspect.label,
-      hint: 'Mantém a proporção original ou permite escolher um formato.',
-      tip: 'Formatos verticais funcionam melhor em redes sociais.',
+      hint: 'Escolha um formato e ajuste o tamanho e a posição da janela.',
+      tip: _aspect == _customAspectPreset
+          ? 'No modo Personalizado, largura e altura podem ser alteradas separadamente.'
+          : 'Os formatos fixos mantêm a proporção enquanto você redimensiona a janela.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OptionChips<AspectPreset>(
             options: visiblePresets,
-            selected: visiblePresets.contains(_aspect) ? _aspect : visiblePresets.first,
+            selected: visiblePresets.contains(_aspect)
+                ? _aspect
+                : visiblePresets.first,
             labelBuilder: (preset) => preset.hint.isEmpty
                 ? preset.label
                 : '${preset.label} — ${preset.hint}',
-            onSelected: (preset) {
-              setState(() {
-                _aspect = preset;
-                _settings = preset.ratio == null
-                    ? _settings.copyWith(clearCrop: true)
-                    : _settings.copyWith(
-                        crop: CropRect.centered(_video, preset.ratio!),
-                      );
-              });
-            },
+            onSelected: _selectAspectPreset,
           ),
-          if (crop != null && canMove) ...[
-            const SizedBox(height: 16),
-            Text(
-              crop.height < _video.height
-                  ? 'Posição vertical do recorte'
-                  : 'Posição horizontal do recorte',
-              style: Theme.of(context).textTheme.bodySmall,
+          if (crop != null) ...[
+            const SizedBox(height: 18),
+            _cropSizeSummary(crop),
+            const SizedBox(height: 12),
+            if (_aspect == _customAspectPreset)
+              _customCropSizeControls(crop)
+            else if (_aspect.ratio != null)
+              _lockedCropSizeControl(crop, _aspect.ratio!),
+            const SizedBox(height: 12),
+            _cropPositionControls(crop),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _resetCurrentCrop(),
+                icon: const Icon(Icons.center_focus_strong_rounded),
+                label: const Text('Centralizar e redefinir'),
+              ),
             ),
-            _cropPositionSlider(crop),
           ],
         ],
       ),
     );
   }
 
-  Widget _cropPositionSlider(CropRect crop) {
-    final verticalRoom = _video.height - crop.height;
-    final horizontalRoom = _video.width - crop.width;
-    final vertical = verticalRoom >= horizontalRoom;
-    final room = vertical ? verticalRoom : horizontalRoom;
-    if (room <= 0) return const SizedBox.shrink();
+  void _selectAspectPreset(AspectPreset preset) {
+    setState(() {
+      _aspect = preset;
 
-    final raw = (vertical ? crop.y : crop.x).toDouble();
-    final value = raw.clamp(0.0, room.toDouble()).toDouble();
-
-    return Slider(
-      min: 0,
-      max: room.toDouble(),
-      value: value,
-      onChanged: (v) {
-        _update(
-          _settings.copyWith(
-            crop: vertical
-                ? crop.copyWith(y: v.round())
-                : crop.copyWith(x: v.round()),
-          ),
+      if (preset == _customAspectPreset) {
+        _settings = _settings.copyWith(
+          crop: _settings.crop ?? _defaultCustomCrop(),
         );
-      },
+        return;
+      }
+
+      if (preset.ratio == null) {
+        _settings = _settings.copyWith(clearCrop: true);
+        return;
+      }
+
+      _settings = _settings.copyWith(
+        crop: CropRect.centered(_video, preset.ratio!),
+      );
+    });
+  }
+
+  CropRect _defaultCustomCrop() {
+    final width = _even(((_video.width * 0.8).round()).clamp(2, _video.width));
+    final height =
+        _even(((_video.height * 0.8).round()).clamp(2, _video.height));
+    return _cropAroundCenter(width, height);
+  }
+
+  Widget _cropSizeSummary(CropRect crop) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.aspect_ratio_rounded,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Janela de recorte',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            '${crop.width}×${crop.height} px',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _lockedCropSizeControl(CropRect crop, double ratio) {
+    final maxCrop = CropRect.centered(_video, ratio);
+    final widthScale = crop.width / maxCrop.width;
+    final heightScale = crop.height / maxCrop.height;
+    final scale = widthScale < heightScale ? widthScale : heightScale;
+    final value = scale.clamp(0.2, 1.0).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _subLabel('Tamanho da janela · ${(value * 100).round()}%'),
+        Slider(
+          min: 0.2,
+          max: 1,
+          divisions: 80,
+          value: value,
+          label: '${(value * 100).round()}%',
+          onChanged: (nextScale) {
+            var width = _even((maxCrop.width * nextScale).round());
+            var height = _even((width / ratio).round());
+
+            if (height > maxCrop.height) {
+              height = _even(maxCrop.height);
+              width = _even((height * ratio).round());
+            }
+
+            _update(
+              _settings.copyWith(
+                crop: _cropAroundCenter(width, height, around: crop),
+              ),
+            );
+          },
+        ),
+        Text(
+          'A proporção ${_aspect.label} permanece travada.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _customCropSizeControls(CropRect crop) {
+    final minWidth = _video.width < 32 ? 2 : 32;
+    final minHeight = _video.height < 32 ? 2 : 32;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _subLabel('Largura · ${crop.width} px'),
+        Slider(
+          min: minWidth.toDouble(),
+          max: _video.width.toDouble(),
+          value: crop.width.clamp(minWidth, _video.width).toDouble(),
+          label: '${crop.width} px',
+          onChanged: (value) {
+            final width = _even(value.round());
+            _update(
+              _settings.copyWith(
+                crop: _cropAroundCenter(width, crop.height, around: crop),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        _subLabel('Altura · ${crop.height} px'),
+        Slider(
+          min: minHeight.toDouble(),
+          max: _video.height.toDouble(),
+          value: crop.height.clamp(minHeight, _video.height).toDouble(),
+          label: '${crop.height} px',
+          onChanged: (value) {
+            final height = _even(value.round());
+            _update(
+              _settings.copyWith(
+                crop: _cropAroundCenter(crop.width, height, around: crop),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _cropPositionControls(CropRect crop) {
+    final horizontalRoom = _video.width - crop.width;
+    final verticalRoom = _video.height - crop.height;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (horizontalRoom > 0) ...[
+          _subLabel('Posição horizontal'),
+          Slider(
+            min: 0,
+            max: horizontalRoom.toDouble(),
+            value: crop.x.clamp(0, horizontalRoom).toDouble(),
+            onChanged: (value) {
+              _update(
+                _settings.copyWith(crop: crop.copyWith(x: value.round())),
+              );
+            },
+          ),
+        ],
+        if (verticalRoom > 0) ...[
+          _subLabel('Posição vertical'),
+          Slider(
+            min: 0,
+            max: verticalRoom.toDouble(),
+            value: crop.y.clamp(0, verticalRoom).toDouble(),
+            onChanged: (value) {
+              _update(
+                _settings.copyWith(crop: crop.copyWith(y: value.round())),
+              );
+            },
+          ),
+        ],
+        if (horizontalRoom <= 0 && verticalRoom <= 0)
+          Text(
+            'A janela ocupa todo o vídeo.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+      ],
+    );
+  }
+
+  void _resetCurrentCrop() {
+    if (_aspect == _customAspectPreset) {
+      _update(_settings.copyWith(crop: _defaultCustomCrop()));
+      return;
+    }
+
+    if (_aspect.ratio == null) {
+      _update(_settings.copyWith(clearCrop: true));
+      return;
+    }
+
+    _update(
+      _settings.copyWith(crop: CropRect.centered(_video, _aspect.ratio!)),
+    );
+  }
+
+  CropRect _cropAroundCenter(int width, int height, {CropRect? around}) {
+    var safeWidth = width.clamp(2, _video.width);
+    var safeHeight = height.clamp(2, _video.height);
+    safeWidth = _even(safeWidth);
+    safeHeight = _even(safeHeight);
+
+    final centerX = around == null
+        ? _video.width / 2
+        : around.x + around.width / 2;
+    final centerY = around == null
+        ? _video.height / 2
+        : around.y + around.height / 2;
+
+    final maxX = _video.width - safeWidth;
+    final maxY = _video.height - safeHeight;
+    final x = (centerX - safeWidth / 2).round().clamp(0, maxX);
+    final y = (centerY - safeHeight / 2).round().clamp(0, maxY);
+
+    return CropRect(
+      x: x,
+      y: y,
+      width: safeWidth,
+      height: safeHeight,
+    );
+  }
+
+  int _even(int value) {
+    if (value <= 2) return 2;
+    return value.isEven ? value : value - 1;
   }
 
   Widget _speedSection() {
@@ -609,7 +851,8 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores · ${_settings.dither.label}',
       hint: 'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
-      tip: '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
+      tip:
+          '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -679,12 +922,12 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _subLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+        ),
+      );
 
   void _showHelp() {
     showModalBottomSheet<void>(
@@ -728,6 +971,16 @@ class _CropOverlay extends StatelessWidget {
         final height = rect.height * scaleY;
         const veil = Color(0x8C000000);
 
+        Widget handle() => Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black54),
+              ),
+            );
+
         return Stack(
           children: [
             Positioned(
@@ -764,10 +1017,21 @@ class _CropOverlay extends StatelessWidget {
               width: width,
               height: height,
               child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white70, width: 2),
-                  ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                    Positioned(left: -5, top: -5, child: handle()),
+                    Positioned(right: -5, top: -5, child: handle()),
+                    Positioned(left: -5, bottom: -5, child: handle()),
+                    Positioned(right: -5, bottom: -5, child: handle()),
+                  ],
                 ),
               ),
             ),
@@ -786,21 +1050,21 @@ class _HelpSheet extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget item(String title, String body) => Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(body, style: theme.textTheme.bodyMedium),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(body, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
+        );
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -829,7 +1093,11 @@ class _HelpSheet extends StatelessWidget {
               'Mais quadros deixam o movimento mais suave, mas aumentam o arquivo. 12 FPS é um bom ponto de partida.',
             ),
             item(
-              '4. Cores e suavização',
+              '4. Janela de recorte',
+              'Você pode redimensionar formatos fixos mantendo a proporção ou usar o modo Personalizado para definir largura e altura livremente.',
+            ),
+            item(
+              '5. Cores e suavização',
               'Mais cores e dither preservam gradientes e detalhes, mas podem reduzir a eficiência da compressão.',
             ),
             item(
