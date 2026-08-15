@@ -18,8 +18,10 @@ em GIF, com controle de corte, proporção, velocidade, resolução e quadros po
 segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
 gastar tempo convertendo**.
 
-Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
-internet.
+`Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
+internet.`
+
+
 
 ---
 
