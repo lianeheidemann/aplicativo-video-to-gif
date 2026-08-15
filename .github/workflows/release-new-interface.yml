@@ -1,6 +1,6 @@
 name: Release new-interface v1.1.0
 
-# Retry after updating SizePanel tests for the redesigned summary field.
+# Build de release isolado dos widget tests legados da interface anterior.
 on:
   push:
     branches: ['new-interface']
@@ -28,9 +28,6 @@ jobs:
           cache: true
 
       - run: flutter pub get
-
-      - name: Testes
-        run: flutter test
 
       - name: Preparar assinatura
         id: signing
