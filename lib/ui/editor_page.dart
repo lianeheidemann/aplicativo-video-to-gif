@@ -18,6 +18,8 @@ const _customAspectPreset = AspectPreset(
   hint: 'Largura e altura livres',
 );
 
+enum _CropHandle { topLeft, topRight, bottomLeft, bottomRight }
+
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -257,7 +259,6 @@ class _EditorPageState extends State<EditorPage> {
               fit: StackFit.expand,
               children: [
                 VideoPlayer(player),
-                _CropOverlay(video: _video, crop: _settings.crop),
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
@@ -296,6 +297,11 @@ class _EditorPageState extends State<EditorPage> {
                     ),
                   ),
                 ),
+                _CropOverlay(
+                  video: _video,
+                  crop: _settings.crop,
+                  onResize: _resizeCropFromHandle,
+                ),
               ],
             ),
           ),
@@ -303,6 +309,171 @@ class _EditorPageState extends State<EditorPage> {
         ],
       ),
     );
+  }
+
+  void _resizeCropFromHandle(
+    _CropHandle handle,
+    Offset displayDelta,
+    Size previewSize,
+  ) {
+    final crop = _settings.crop;
+    if (crop == null || previewSize.width <= 0 || previewSize.height <= 0) {
+      return;
+    }
+
+    final dx = displayDelta.dx * _video.width / previewSize.width;
+    final dy = displayDelta.dy * _video.height / previewSize.height;
+
+    final ratio = _aspect == _customAspectPreset ? null : _aspect.ratio;
+    final next = ratio == null
+        ? _resizeFreeCrop(crop, handle, dx, dy)
+        : _resizeLockedCrop(crop, handle, dx, dy, ratio);
+
+    if (next.width == crop.width &&
+        next.height == crop.height &&
+        next.x == crop.x &&
+        next.y == crop.y) {
+      return;
+    }
+
+    _update(_settings.copyWith(crop: next));
+  }
+
+  CropRect _resizeFreeCrop(
+    CropRect crop,
+    _CropHandle handle,
+    double dx,
+    double dy,
+  ) {
+    const minSize = 32;
+    var left = crop.x.toDouble();
+    var top = crop.y.toDouble();
+    var right = (crop.x + crop.width).toDouble();
+    var bottom = (crop.y + crop.height).toDouble();
+
+    switch (handle) {
+      case _CropHandle.topLeft:
+        left += dx;
+        top += dy;
+      case _CropHandle.topRight:
+        right += dx;
+        top += dy;
+      case _CropHandle.bottomLeft:
+        left += dx;
+        bottom += dy;
+      case _CropHandle.bottomRight:
+        right += dx;
+        bottom += dy;
+    }
+
+    left = left.clamp(0.0, right - minSize);
+    top = top.clamp(0.0, bottom - minSize);
+    right = right.clamp(left + minSize, _video.width.toDouble());
+    bottom = bottom.clamp(top + minSize, _video.height.toDouble());
+
+    var width = _even((right - left).round());
+    var height = _even((bottom - top).round());
+    width = width.clamp(2, _video.width);
+    height = height.clamp(2, _video.height);
+
+    var x = left.round().clamp(0, _video.width - width);
+    var y = top.round().clamp(0, _video.height - height);
+
+    if (handle == _CropHandle.topLeft || handle == _CropHandle.bottomLeft) {
+      x = (right.round() - width).clamp(0, _video.width - width);
+    }
+    if (handle == _CropHandle.topLeft || handle == _CropHandle.topRight) {
+      y = (bottom.round() - height).clamp(0, _video.height - height);
+    }
+
+    return CropRect(x: x, y: y, width: width, height: height);
+  }
+
+  CropRect _resizeLockedCrop(
+    CropRect crop,
+    _CropHandle handle,
+    double dx,
+    double dy,
+    double ratio,
+  ) {
+    const minSide = 32.0;
+    final deltaW = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.bottomLeft => -dx,
+      _CropHandle.topRight || _CropHandle.bottomRight => dx,
+    };
+    final deltaH = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.topRight => -dy,
+      _CropHandle.bottomLeft || _CropHandle.bottomRight => dy,
+    };
+
+    final widthChange = deltaW / crop.width;
+    final heightChange = deltaH / crop.height;
+    final scaleChange = (widthChange + heightChange) / 2;
+
+    var width = crop.width * (1 + scaleChange);
+    var height = width / ratio;
+
+    if (height < minSide) {
+      height = minSide;
+      width = height * ratio;
+    }
+    if (width < minSide) {
+      width = minSide;
+      height = width / ratio;
+    }
+
+    final anchorX = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.bottomLeft =>
+        (crop.x + crop.width).toDouble(),
+      _CropHandle.topRight || _CropHandle.bottomRight => crop.x.toDouble(),
+    };
+    final anchorY = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.topRight =>
+        (crop.y + crop.height).toDouble(),
+      _CropHandle.bottomLeft || _CropHandle.bottomRight => crop.y.toDouble(),
+    };
+
+    final maxWidthByX = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.bottomLeft => anchorX,
+      _CropHandle.topRight || _CropHandle.bottomRight =>
+        _video.width - anchorX,
+    };
+    final maxHeightByY = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.topRight => anchorY,
+      _CropHandle.bottomLeft || _CropHandle.bottomRight =>
+        _video.height - anchorY,
+    };
+
+    final maxWidth = maxWidthByX < maxHeightByY * ratio
+        ? maxWidthByX
+        : maxHeightByY * ratio;
+    width = width.clamp(2.0, maxWidth);
+    height = width / ratio;
+
+    var evenWidth = _even(width.round());
+    var evenHeight = _even((evenWidth / ratio).round());
+    if (evenHeight > maxHeightByY) {
+      evenHeight = _even(maxHeightByY.floor());
+      evenWidth = _even((evenHeight * ratio).round());
+    }
+
+    evenWidth = evenWidth.clamp(2, _video.width);
+    evenHeight = evenHeight.clamp(2, _video.height);
+
+    final x = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.bottomLeft =>
+        (anchorX.round() - evenWidth).clamp(0, _video.width - evenWidth),
+      _CropHandle.topRight || _CropHandle.bottomRight =>
+        anchorX.round().clamp(0, _video.width - evenWidth),
+    };
+    final y = switch (handle) {
+      _CropHandle.topLeft || _CropHandle.topRight =>
+        (anchorY.round() - evenHeight).clamp(0, _video.height - evenHeight),
+      _CropHandle.bottomLeft || _CropHandle.bottomRight =>
+        anchorY.round().clamp(0, _video.height - evenHeight),
+    };
+
+    return CropRect(x: x, y: y, width: evenWidth, height: evenHeight);
   }
 
   Widget _previewTimeline(VideoPlayerController player) {
@@ -492,10 +663,10 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.crop_rounded,
       title: 'Formato da janela',
       value: _aspect.label,
-      hint: 'Escolha um formato e ajuste o tamanho e a posição da janela.',
+      hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
       tip: _aspect == _customAspectPreset
-          ? 'No modo Personalizado, largura e altura podem ser alteradas separadamente.'
-          : 'Os formatos fixos mantêm a proporção enquanto você redimensiona a janela.',
+          ? 'Arraste qualquer bolinha de canto. Largura e altura são livres.'
+          : 'Arraste uma bolinha de canto. A proporção escolhida permanece travada.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -513,17 +684,43 @@ class _EditorPageState extends State<EditorPage> {
             const SizedBox(height: 18),
             _cropSizeSummary(crop),
             const SizedBox(height: 12),
-            if (_aspect == _customAspectPreset)
-              _customCropSizeControls(crop)
-            else if (_aspect.ratio != null)
-              _lockedCropSizeControl(crop, _aspect.ratio!),
-            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.open_with_rounded,
+                    size: 19,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _aspect == _customAspectPreset
+                          ? 'Segure uma das quatro bolinhas brancas da moldura e arraste para alterar largura e altura.'
+                          : 'Segure uma das quatro bolinhas brancas da moldura e arraste. A proporção ${_aspect.label} será mantida.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             _cropPositionControls(crop),
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
-                onPressed: () => _resetCurrentCrop(),
+                onPressed: _resetCurrentCrop,
                 icon: const Icon(Icons.center_focus_strong_rounded),
                 label: const Text('Centralizar e redefinir'),
               ),
@@ -603,91 +800,6 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _lockedCropSizeControl(CropRect crop, double ratio) {
-    final maxCrop = CropRect.centered(_video, ratio);
-    final widthScale = crop.width / maxCrop.width;
-    final heightScale = crop.height / maxCrop.height;
-    final scale = widthScale < heightScale ? widthScale : heightScale;
-    final value = scale.clamp(0.2, 1.0).toDouble();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _subLabel('Tamanho da janela · ${(value * 100).round()}%'),
-        Slider(
-          min: 0.2,
-          max: 1,
-          divisions: 80,
-          value: value,
-          label: '${(value * 100).round()}%',
-          onChanged: (nextScale) {
-            var width = _even((maxCrop.width * nextScale).round());
-            var height = _even((width / ratio).round());
-
-            if (height > maxCrop.height) {
-              height = _even(maxCrop.height);
-              width = _even((height * ratio).round());
-            }
-
-            _update(
-              _settings.copyWith(
-                crop: _cropAroundCenter(width, height, around: crop),
-              ),
-            );
-          },
-        ),
-        Text(
-          'A proporção ${_aspect.label} permanece travada.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      ],
-    );
-  }
-
-  Widget _customCropSizeControls(CropRect crop) {
-    final minWidth = _video.width < 32 ? 2 : 32;
-    final minHeight = _video.height < 32 ? 2 : 32;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _subLabel('Largura · ${crop.width} px'),
-        Slider(
-          min: minWidth.toDouble(),
-          max: _video.width.toDouble(),
-          value: crop.width.clamp(minWidth, _video.width).toDouble(),
-          label: '${crop.width} px',
-          onChanged: (value) {
-            final width = _even(value.round());
-            _update(
-              _settings.copyWith(
-                crop: _cropAroundCenter(width, crop.height, around: crop),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 4),
-        _subLabel('Altura · ${crop.height} px'),
-        Slider(
-          min: minHeight.toDouble(),
-          max: _video.height.toDouble(),
-          value: crop.height.clamp(minHeight, _video.height).toDouble(),
-          label: '${crop.height} px',
-          onChanged: (value) {
-            final height = _even(value.round());
-            _update(
-              _settings.copyWith(
-                crop: _cropAroundCenter(crop.width, height, around: crop),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
   Widget _cropPositionControls(CropRect crop) {
     final horizontalRoom = _video.width - crop.width;
     final verticalRoom = _video.height - crop.height;
@@ -695,6 +807,20 @@ class _EditorPageState extends State<EditorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          'Posição da janela',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'As barras abaixo movem a janela; o tamanho é alterado somente pelas bolinhas de canto na prévia.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 12),
         if (horizontalRoom > 0) ...[
           _subLabel('Posição horizontal'),
           Slider(
@@ -766,12 +892,7 @@ class _EditorPageState extends State<EditorPage> {
     final x = (centerX - safeWidth / 2).round().clamp(0, maxX);
     final y = (centerY - safeHeight / 2).round().clamp(0, maxY);
 
-    return CropRect(
-      x: x,
-      y: y,
-      width: safeWidth,
-      height: safeHeight,
-    );
+    return CropRect(x: x, y: y, width: safeWidth, height: safeHeight);
   }
 
   int _even(int value) {
@@ -951,10 +1072,16 @@ class _EditorPageState extends State<EditorPage> {
 }
 
 class _CropOverlay extends StatelessWidget {
-  const _CropOverlay({required this.video, required this.crop});
+  const _CropOverlay({
+    required this.video,
+    required this.crop,
+    required this.onResize,
+  });
 
   final VideoInfo video;
   final CropRect? crop;
+  final void Function(_CropHandle handle, Offset delta, Size previewSize)
+      onResize;
 
   @override
   Widget build(BuildContext context) {
@@ -963,6 +1090,7 @@ class _CropOverlay extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final previewSize = Size(constraints.maxWidth, constraints.maxHeight);
         final scaleX = constraints.maxWidth / video.width;
         final scaleY = constraints.maxHeight / video.height;
         final left = rect.x * scaleX;
@@ -971,45 +1099,66 @@ class _CropOverlay extends StatelessWidget {
         final height = rect.height * scaleY;
         const veil = Color(0x8C000000);
 
-        Widget handle() => Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black54),
+        Widget handle(_CropHandle handle) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanUpdate: (details) =>
+                onResize(handle, details.delta, previewSize),
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: Center(
+                child: Container(
+                  width: 15,
+                  height: 15,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black54, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            );
+            ),
+          );
+        }
 
         return Stack(
+          clipBehavior: Clip.none,
           children: [
             Positioned(
               left: 0,
               right: 0,
               top: 0,
               height: top,
-              child: const ColoredBox(color: veil),
+              child: const IgnorePointer(child: ColoredBox(color: veil)),
             ),
             Positioned(
               left: 0,
               right: 0,
               top: top + height,
               bottom: 0,
-              child: const ColoredBox(color: veil),
+              child: const IgnorePointer(child: ColoredBox(color: veil)),
             ),
             Positioned(
               left: 0,
               width: left,
               top: top,
               height: height,
-              child: const ColoredBox(color: veil),
+              child: const IgnorePointer(child: ColoredBox(color: veil)),
             ),
             Positioned(
               left: left + width,
               right: 0,
               top: top,
               height: height,
-              child: const ColoredBox(color: veil),
+              child: const IgnorePointer(child: ColoredBox(color: veil)),
             ),
             Positioned(
               left: left,
@@ -1017,23 +1166,32 @@ class _CropOverlay extends StatelessWidget {
               width: width,
               height: height,
               child: IgnorePointer(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
-                    Positioned(left: -5, top: -5, child: handle()),
-                    Positioned(right: -5, top: -5, child: handle()),
-                    Positioned(left: -5, bottom: -5, child: handle()),
-                    Positioned(right: -5, bottom: -5, child: handle()),
-                  ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
                 ),
               ),
+            ),
+            Positioned(
+              left: left - 17,
+              top: top - 17,
+              child: handle(_CropHandle.topLeft),
+            ),
+            Positioned(
+              left: left + width - 17,
+              top: top - 17,
+              child: handle(_CropHandle.topRight),
+            ),
+            Positioned(
+              left: left - 17,
+              top: top + height - 17,
+              child: handle(_CropHandle.bottomLeft),
+            ),
+            Positioned(
+              left: left + width - 17,
+              top: top + height - 17,
+              child: handle(_CropHandle.bottomRight),
             ),
           ],
         );
@@ -1094,7 +1252,7 @@ class _HelpSheet extends StatelessWidget {
             ),
             item(
               '4. Janela de recorte',
-              'Você pode redimensionar formatos fixos mantendo a proporção ou usar o modo Personalizado para definir largura e altura livremente.',
+              'Segure as bolinhas dos cantos da moldura na própria prévia para redimensionar. Formatos fixos preservam a proporção; Personalizado libera largura e altura.',
             ),
             item(
               '5. Cores e suavização',
