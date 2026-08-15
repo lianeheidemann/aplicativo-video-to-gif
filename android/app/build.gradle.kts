@@ -27,7 +27,9 @@ android {
     compileSdk = 36
 
     // O FFmpegKit traz bibliotecas nativas (.so) e precisa do NDK.
-    ndkVersion = "27.0.12077973"
+    // Esta é a versão que o Flutter 3.47 espera; se a sua instalação tiver
+    // outra, a mensagem de erro do build informa qual usar.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

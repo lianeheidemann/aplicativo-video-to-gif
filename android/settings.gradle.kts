@@ -18,8 +18,11 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    // Ficamos na linha 8.x do AGP de propósito: o AGP 9 lê apenas a DSL nova,
+    // incompatível com a forma como app/build.gradle.kts está escrito.
+    // O Flutter aceita de 8.2.2 até 8.13.x.
+    id("com.android.application") version "8.13.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
 }
 
 include(":app")
