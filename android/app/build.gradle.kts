@@ -52,11 +52,13 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Só empacotamos ABIs de 32 e 64 bits ARM. x86_64 serve apenas para
-        // emulador e dobraria o tamanho do pacote por causa das libs do FFmpeg.
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
+        // Não declaramos `ndk { abiFilters }` aqui de propósito. Ele conflita
+        // com `flutter build apk --split-per-abi`, que configura os próprios
+        // filtros de ABI, e o Gradle recusa as duas coisas ao mesmo tempo:
+        //   Conflicting configuration : '...' in ndk abiFilters cannot be
+        //   present when splits abi filters are set
+        // Restringir ABI aqui também não traria ganho para a loja: o AAB é
+        // dividido por ABI no servidor, então cada usuário baixa só a sua.
     }
 
     signingConfigs {

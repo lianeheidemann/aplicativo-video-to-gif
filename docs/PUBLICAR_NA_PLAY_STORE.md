@@ -478,9 +478,12 @@ você vai precisar subir esse número e reenviar.
    publicamente e continuar no ar depois da aprovação.
 6. **Screenshots com barra de status suja** (bateria em 3%, notificações). Use
    o modo demonstração: `adb shell settings put global sysui_demo_allowed 1`.
-7. **App pesado demais.** O FFmpeg adiciona bibliotecas nativas. Este projeto
-   já limita a `armeabi-v7a` e `arm64-v8a` e usa splits por ABI no AAB, então
-   o download por usuário fica bem menor que o pacote total.
+7. **App pesado demais.** O FFmpeg adiciona bibliotecas nativas para cada
+   arquitetura, então o pacote completo é grande. Isso não é problema na
+   loja: o AAB é dividido por ABI no servidor do Google e cada usuário baixa
+   só a arquitetura do próprio aparelho. Já para distribuir APK por fora
+   (teste, link direto), use os arquivos por arquitetura que o workflow de
+   release gera, não o universal.
 8. **Ignorar a licença do FFmpeg.** Veja [`LICENCAS.md`](LICENCAS.md) — é
    rápido, mas precisa ser feito.
 
