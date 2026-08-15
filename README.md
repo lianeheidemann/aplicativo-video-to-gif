@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="110" src="assets/icon-v6.png"/>
+
 # Vídeo em GIF
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
