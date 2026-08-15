@@ -30,15 +30,12 @@ class _EditorPageState extends State<EditorPage> {
   final _ffmpeg = FfmpegService();
 
   late ConversionSettings _settings = widget.initialSettings;
-
-  /// Começa com um palpite tirado do bitrate do arquivo; vira uma medição
-  /// real assim que o usuário toca em "Medir".
-  late ComplexityProfile _profile = SizeEstimator.profileFromSource(
-    widget.video,
-  );
+  late ComplexityProfile _profile = SizeEstimator.profileFromSource(widget.video);
 
   VideoPlayerController? _player;
+  bool _previewFailed = false;
   bool _measuring = false;
+  bool _openingConversion = false;
   AspectPreset _aspect = AspectPreset.presets.first;
 
   VideoInfo get _video => widget.video;
@@ -67,9 +64,8 @@ class _EditorPageState extends State<EditorPage> {
       }
       setState(() => _player = controller);
     } catch (_) {
-      // A prévia é um extra: se o codec não tocar no player nativo, a
-      // conversão pelo FFmpeg continua funcionando normalmente.
       await controller.dispose();
+      if (mounted) setState(() => _previewFailed = true);
     }
   }
 
@@ -89,17 +85,10 @@ class _EditorPageState extends State<EditorPage> {
     await player.seekTo(Duration(milliseconds: (seconds * 1000).round()));
   }
 
-  // ------------------------------------------------------------------
-  // Medição
-  // ------------------------------------------------------------------
-
   Future<void> _measure() async {
     setState(() => _measuring = true);
     try {
-      final profile = await _ffmpeg.calibrate(
-        video: _video,
-        settings: _settings,
-      );
+      final profile = await _ffmpeg.calibrate(video: _video, settings: _settings);
       if (!mounted) return;
       setState(() {
         _profile = profile;
@@ -109,8 +98,7 @@ class _EditorPageState extends State<EditorPage> {
       if (!mounted) return;
       setState(() => _measuring = false);
       _showMessage(
-        'Não deu para medir este trecho. A estimativa aproximada continua '
-        'valendo.',
+        'Não deu para medir este trecho. A estimativa aproximada continua valendo.',
       );
     }
   }
@@ -133,6 +121,8 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _convert() async {
+    if (_openingConversion) return;
+    setState(() => _openingConversion = true);
     await _player?.pause();
     if (!mounted) return;
 
@@ -145,14 +135,14 @@ class _EditorPageState extends State<EditorPage> {
         ),
       ),
     );
-  }
 
-  // ------------------------------------------------------------------
-  // Interface
-  // ------------------------------------------------------------------
+    if (mounted) setState(() => _openingConversion = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final (width, height) = _settings.outputDimensions(_video);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ajustar GIF'),
@@ -160,102 +150,259 @@ class _EditorPageState extends State<EditorPage> {
           IconButton(
             tooltip: 'Como deixar o GIF mais leve',
             onPressed: _showHelp,
-            icon: const Icon(Icons.help_outline),
+            icon: const Icon(Icons.help_outline_rounded),
           ),
+          const SizedBox(width: 6),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        children: [
-          _preview(),
-          const SizedBox(height: 12),
-          _durationSection(),
-          _aspectSection(),
-          _speedSection(),
-          _resolutionSection(),
-          _fpsSection(),
-          _advancedSection(),
-          const SizedBox(height: 8),
-        ],
-      ),
-      bottomNavigationBar: SizePanel(
-        estimate: _estimate,
-        suggestion: SizeEstimator.suggestionFor(
-          settings: _settings,
-          video: _video,
-          profile: _profile,
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+          children: [
+            _preview(),
+            const SizedBox(height: 18),
+            _durationSection(),
+            _aspectSection(),
+            _speedSection(),
+            _resolutionSection(),
+            _fpsSection(),
+            _colorSection(),
+            SizePanel(
+              estimate: _estimate,
+              suggestion: SizeEstimator.suggestionFor(
+                settings: _settings,
+                video: _video,
+                profile: _profile,
+              ),
+              summary:
+                  '$width×$height px · ${_settings.fps} FPS · '
+                  '${_settings.outputDurationSeconds.toStringAsFixed(1)} s · '
+                  '${_settings.colors} cores',
+              measuring: _measuring,
+              onMeasure: _measure,
+              onConvert: _openingConversion ? () {} : _convert,
+              onFitTo: _fitTo,
+            ),
+          ],
         ),
-        measuring: _measuring,
-        onMeasure: _measure,
-        onConvert: _convert,
-        onFitTo: _fitTo,
       ),
     );
   }
 
   Widget _preview() {
+    final theme = Theme.of(context);
     final player = _player;
+
+    if (_previewFailed) {
+      return Container(
+        constraints: const BoxConstraints(minHeight: 180),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.videocam_off_outlined, color: theme.colorScheme.primary),
+            const SizedBox(height: 10),
+            const Text('Prévia indisponível para este codec'),
+            const SizedBox(height: 4),
+            Text(
+              'A conversão continua funcionando normalmente.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (player == null || !player.value.isInitialized) {
       return AspectRatio(
         aspectRatio: _video.aspectRatio,
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(22),
           ),
           child: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: AspectRatio(
-        aspectRatio: player.value.aspectRatio,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            VideoPlayer(player),
-            _CropOverlay(video: _video, crop: _settings.crop),
-            Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () async {
-                    if (player.value.isPlaying) {
-                      await player.pause();
-                    } else {
-                      await player.seekTo(
-                        Duration(
-                          milliseconds: (_settings.startSeconds * 1000).round(),
-                        ),
-                      );
-                      await player.play();
-                    }
-                    if (mounted) setState(() {});
-                  },
-                  child: Center(
-                    child: AnimatedOpacity(
-                      opacity: player.value.isPlaying ? 0 : 1,
-                      duration: const Duration(milliseconds: 150),
-                      child: const CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.black45,
-                        child: Icon(
-                          Icons.play_arrow,
-                          color: Colors.white,
-                          size: 34,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: player.value.aspectRatio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                VideoPlayer(player),
+                _CropOverlay(video: _video, crop: _settings.crop),
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        if (player.value.isPlaying) {
+                          await player.pause();
+                        } else {
+                          final position = player.value.position.inMilliseconds / 1000;
+                          if (position < _settings.startSeconds ||
+                              position >= _settings.endSeconds) {
+                            await _seekPreview(_settings.startSeconds);
+                          }
+                          await player.play();
+                        }
+                        if (mounted) setState(() {});
+                      },
+                      child: Center(
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: const BoxDecoration(
+                            color: Color(0x99000000),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            player.value.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 36,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          _previewTimeline(player),
+        ],
       ),
+    );
+  }
+
+  Widget _previewTimeline(VideoPlayerController player) {
+    return AnimatedBuilder(
+      animation: player,
+      builder: (context, _) {
+        final duration = _video.durationSeconds <= 0 ? 1.0 : _video.durationSeconds;
+        final current = player.value.position.inMilliseconds / 1000.0;
+        final start = (_settings.startSeconds / duration).clamp(0.0, 1.0);
+        final end = (_settings.endSeconds / duration).clamp(0.0, 1.0);
+        final position = (current / duration).clamp(0.0, 1.0);
+
+        if (player.value.isPlaying && current >= _settings.endSeconds) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            await player.seekTo(
+              Duration(milliseconds: (_settings.startSeconds * 1000).round()),
+            );
+          });
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+          child: Column(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (details) {
+                      final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
+                      _seekPreview(ratio * duration);
+                    },
+                    child: SizedBox(
+                      height: 24,
+                      child: Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: width * start,
+                            width: width * (end - start),
+                            child: Container(
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: (width - 3) * position,
+                            child: Container(
+                              width: 3,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: (width - 2) * start,
+                            child: Container(width: 2, height: 18, color: Colors.white70),
+                          ),
+                          Positioned(
+                            left: (width - 2) * end,
+                            child: Container(width: 2, height: 18, color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatSeconds(_settings.startSeconds),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  Text(
+                    'Atual ${_formatSeconds(current.clamp(0, duration).toDouble())}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                  Text(
+                    _formatSeconds(_settings.endSeconds),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -264,12 +411,11 @@ class _EditorPageState extends State<EditorPage> {
     final end = _settings.endSeconds;
 
     return LabeledSection(
-      icon: Icons.content_cut,
+      icon: Icons.content_cut_rounded,
       title: 'Duração',
-      value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)}s',
-      hint:
-          'Arraste as pontas para cortar o começo e o fim. '
-          'É o controle que mais muda o peso.',
+      value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
+      hint: 'Selecione a parte do vídeo que deseja transformar em GIF.',
+      tip: 'Cortes menores geram GIFs menores.',
       child: Column(
         children: [
           RangeSlider(
@@ -279,7 +425,6 @@ class _EditorPageState extends State<EditorPage> {
             values: RangeValues(start, end),
             labels: RangeLabels(_formatSeconds(start), _formatSeconds(end)),
             onChanged: (values) {
-              // Impede que as pontas se cruzem ou colem.
               if (values.end - values.start < 0.2) return;
               _update(
                 _settings.copyWith(
@@ -290,12 +435,29 @@ class _EditorPageState extends State<EditorPage> {
             },
             onChangeEnd: (values) => _seekPreview(values.start),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Início: ${_formatSeconds(start)}'),
-              Text('Fim: ${_formatSeconds(end)}'),
-            ],
+          const SizedBox(height: 4),
+          _metricRow('Início', _formatSeconds(start)),
+          _metricRow('Fim', _formatSeconds(end)),
+          _metricRow(
+            'Duração total',
+            '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                _update(
+                  _settings.copyWith(
+                    startSeconds: widget.initialSettings.startSeconds,
+                    endSeconds: widget.initialSettings.endSeconds,
+                  ),
+                );
+                _seekPreview(widget.initialSettings.startSeconds);
+              },
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('Redefinir'),
+            ),
           ),
         ],
       ),
@@ -304,24 +466,25 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _aspectSection() {
     final crop = _settings.crop;
-    final canMove =
-        crop != null &&
+    final canMove = crop != null &&
         (crop.width < _video.width || crop.height < _video.height);
+    final visiblePresets = AspectPreset.presets.take(5).toList();
 
     return LabeledSection(
-      icon: Icons.crop,
+      icon: Icons.crop_rounded,
       title: 'Formato da janela',
       value: _aspect.label,
-      hint: _aspect.hint.isEmpty
-          ? 'Mantém a proporção original do vídeo.'
-          : _aspect.hint,
+      hint: 'Mantém a proporção original ou permite escolher um formato.',
+      tip: 'Formatos verticais funcionam melhor em redes sociais.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OptionChips<AspectPreset>(
-            options: AspectPreset.presets,
-            selected: _aspect,
-            labelBuilder: (preset) => preset.label,
+            options: visiblePresets,
+            selected: visiblePresets.contains(_aspect) ? _aspect : visiblePresets.first,
+            labelBuilder: (preset) => preset.hint.isEmpty
+                ? preset.label
+                : '${preset.label} — ${preset.hint}',
             onSelected: (preset) {
               setState(() {
                 _aspect = preset;
@@ -334,7 +497,7 @@ class _EditorPageState extends State<EditorPage> {
             },
           ),
           if (crop != null && canMove) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
               crop.height < _video.height
                   ? 'Posição vertical do recorte'
@@ -356,7 +519,7 @@ class _EditorPageState extends State<EditorPage> {
     if (room <= 0) return const SizedBox.shrink();
 
     final raw = (vertical ? crop.y : crop.x).toDouble();
-    final value = raw < 0 ? 0.0 : (raw > room ? room.toDouble() : raw);
+    final value = raw.clamp(0.0, room.toDouble()).toDouble();
 
     return Slider(
       min: 0,
@@ -376,12 +539,12 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _speedSection() {
     return LabeledSection(
-      icon: Icons.fast_forward,
+      icon: Icons.speed_rounded,
       title: 'Velocidade',
       value: '${_formatSpeed(_settings.speed)}x',
       hint:
-          'Acelerar encurta o GIF e economiza peso; '
-          'câmera lenta deixa mais longo e mais pesado.',
+          'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
+      tip: '1x oferece o melhor equilíbrio entre duração e tamanho.',
       child: OptionChips<double>(
         options: ConversionSettings.speedOptions,
         selected: _settings.speed,
@@ -398,19 +561,19 @@ class _EditorPageState extends State<EditorPage> {
     if (available.isEmpty) available.add(_video.width);
 
     final (width, height) = _settings.outputDimensions(_video);
+    final selected = available.contains(_settings.targetWidth)
+        ? _settings.targetWidth
+        : available.last;
 
     return LabeledSection(
-      icon: Icons.photo_size_select_large,
+      icon: Icons.photo_size_select_large_rounded,
       title: 'Resolução',
       value: '$width×$height',
-      hint:
-          'Reduzir a largura pela metade corta o peso em cerca de 75%, '
-          'porque a área cai ao quadrado.',
+      hint: 'Reduzir a largura diminui significativamente o tamanho do arquivo.',
+      tip: '480 px oferece boa qualidade para a maioria dos casos.',
       child: OptionChips<int>(
         options: available,
-        selected: available.contains(_settings.targetWidth)
-            ? _settings.targetWidth
-            : available.last,
+        selected: selected,
         labelBuilder: (w) => '$w px',
         onSelected: (w) => _update(_settings.copyWith(targetWidth: w)),
       ),
@@ -419,59 +582,65 @@ class _EditorPageState extends State<EditorPage> {
 
   Widget _fpsSection() {
     return LabeledSection(
-      icon: Icons.animation,
+      icon: Icons.animation_rounded,
       title: 'Quadros por segundo (FPS)',
       value: '${_settings.fps} FPS',
-      hint: _fpsHint(_settings.fps),
+      hint:
+          'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
+      tip: '12 FPS é um bom equilíbrio entre fluidez e tamanho.',
       child: OptionChips<int>(
         options: ConversionSettings.fpsOptions,
         selected: _settings.fps,
-        labelBuilder: (fps) => '$fps',
+        labelBuilder: (fps) => '$fps FPS',
         onSelected: (fps) => _update(_settings.copyWith(fps: fps)),
       ),
     );
   }
 
-  Widget _advancedSection() {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ExpansionTile(
-        shape: const Border(),
-        leading: Icon(Icons.tune, color: Theme.of(context).colorScheme.primary),
-        title: const Text(
-          'Qualidade das cores',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          '${_settings.colors} cores · ${_settings.dither.label}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+  Widget _colorSection() {
+    final colors = <int>{
+      ...ConversionSettings.primaryColorOptions,
+      _settings.colors,
+    }.toList()
+      ..sort();
+
+    return LabeledSection(
+      icon: Icons.palette_outlined,
+      title: 'Qualidade das cores',
+      value: '${_settings.colors} cores · ${_settings.dither.label}',
+      hint: 'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
+      tip: '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _subLabel('Número de cores'),
           OptionChips<int>(
-            options: ConversionSettings.colorOptions,
+            options: colors,
             selected: _settings.colors,
-            labelBuilder: (c) => '$c',
-            onSelected: (c) => _update(_settings.copyWith(colors: c)),
+            labelBuilder: (value) => switch (value) {
+              64 => '64 cores — Menor tamanho',
+              128 => '128 cores — Equilibrado',
+              256 => '256 cores — Melhor qualidade',
+              _ => '$value cores',
+            },
+            onSelected: (value) => _update(_settings.copyWith(colors: value)),
           ),
-          const SizedBox(height: 12),
-          _subLabel('Suavização de cor (${_settings.dither.description})'),
+          const SizedBox(height: 18),
+          _subLabel('Suavização de cor · ${_settings.dither.description}'),
           OptionChips<DitherMode>(
             options: DitherMode.values,
             selected: _settings.dither,
             labelBuilder: (d) => d.label,
             onSelected: (d) => _update(_settings.copyWith(dither: d)),
           ),
-          const SizedBox(height: 12),
-          _subLabel('Paleta (${_settings.palette.description})'),
+          const SizedBox(height: 18),
+          _subLabel('Paleta · ${_settings.palette.description}'),
           OptionChips<PaletteMode>(
             options: PaletteMode.values,
             selected: _settings.palette,
             labelBuilder: (p) => p.label,
             onSelected: (p) => _update(_settings.copyWith(palette: p)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Repetir para sempre'),
@@ -484,8 +653,33 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  Widget _metricRow(String label, String value) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _subLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.only(bottom: 8),
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(text, style: Theme.of(context).textTheme.bodySmall),
@@ -511,16 +705,8 @@ class _EditorPageState extends State<EditorPage> {
 
   static String _formatSpeed(double speed) =>
       speed == speed.roundToDouble() ? '${speed.round()}' : '$speed';
-
-  static String _fpsHint(int fps) {
-    if (fps <= 8) return 'Bem econômico, movimento com "engasgo" visível.';
-    if (fps <= 12) return 'Boa fluidez com peso baixo — o ponto ideal.';
-    if (fps <= 20) return 'Bem fluido, arquivo já bem maior.';
-    return 'Muito fluido, mas o peso cresce rápido e poucos apps aproveitam.';
-  }
 }
 
-/// Escurece as bordas que serão cortadas, para o usuário ver o recorte.
 class _CropOverlay extends StatelessWidget {
   const _CropOverlay({required this.video, required this.crop});
 
@@ -536,14 +722,10 @@ class _CropOverlay extends StatelessWidget {
       builder: (context, constraints) {
         final scaleX = constraints.maxWidth / video.width;
         final scaleY = constraints.maxHeight / video.height;
-
         final left = rect.x * scaleX;
         final top = rect.y * scaleY;
         final width = rect.width * scaleX;
         final height = rect.height * scaleY;
-
-        // Quatro faixas escuras em volta da área que fica, em vez de um véu
-        // sobre tudo: assim o trecho recortado continua nítido.
         const veil = Color(0x8C000000);
 
         return Stack(
@@ -622,7 +804,7 @@ class _HelpSheet extends StatelessWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -636,35 +818,23 @@ class _HelpSheet extends StatelessWidget {
             const SizedBox(height: 16),
             item(
               '1. Duração — efeito direto',
-              'O GIF não comprime no tempo como um vídeo: cada segundo a mais '
-                  'soma quadros novos. Cortar de 10s para 5s tira metade do peso.',
+              'Cada segundo adiciona novos quadros. Cortar um trecho é uma das formas mais eficientes de reduzir o tamanho.',
             ),
             item(
-              '2. Resolução — efeito ao quadrado',
-              'A área cresce com o quadrado da largura. Ir de 480 px para '
-                  '240 px deixa o arquivo quatro vezes menor.',
+              '2. Resolução — efeito muito forte',
+              'Quanto maior a área de cada quadro, maior tende a ser o GIF. 480 px costuma funcionar bem para compartilhamento.',
             ),
             item(
-              '3. FPS — efeito forte, mas com desconto',
-              'Dobrar o FPS não dobra o arquivo, porque quadros vizinhos são '
-                  'parecidos e o GIF só regrava o que mudou. Ainda assim, '
-                  '12 FPS costuma ser o melhor equilíbrio.',
+              '3. FPS — fluidez versus tamanho',
+              'Mais quadros deixam o movimento mais suave, mas aumentam o arquivo. 12 FPS é um bom ponto de partida.',
             ),
             item(
-              '4. Cor e suavização — o ajuste fino',
-              'O GIF só aceita 256 cores por paleta. Suavizar a cor (dither) '
-                  'melhora gradientes, mas adiciona ruído que atrapalha a '
-                  'compressão. Se o seu vídeo tem céu, fumaça ou sombras, vale '
-                  'testar "Alta"; se tem desenho ou texto, "Sem pontilhado" '
-                  'fica ótimo e bem menor.',
+              '4. Cores e suavização',
+              'Mais cores e dither preservam gradientes e detalhes, mas podem reduzir a eficiência da compressão.',
             ),
             item(
-              'Por que a estimativa é aproximada',
-              'O peso depende de quanto a cena se mexe, e isso varia de vídeo '
-                  'para vídeo. Tocando em "Medir", o app converte trechos de '
-                  'menos de um segundo e mede o resultado real — a partir daí '
-                  'o número fica preciso e continua valendo enquanto você '
-                  'mexe nos outros controles.',
+              'Por que medir novamente?',
+              'A estimativa inicial é aproximada. Ao medir, o app usa o FFmpeg em uma pequena amostra do próprio vídeo para calibrar o cálculo.',
             ),
           ],
         ),
