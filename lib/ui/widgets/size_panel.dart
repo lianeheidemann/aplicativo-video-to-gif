@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import '../../models/size_estimate.dart';
 import '../../theme.dart';
 
-/// Painel fixo no rodapé do editor: mostra o peso previsto, o que ele
-/// significa e o que fazer se estiver alto.
 class SizePanel extends StatelessWidget {
   const SizePanel({
     super.key,
     required this.estimate,
     required this.suggestion,
+    required this.summary,
     required this.measuring,
     required this.onMeasure,
     required this.onConvert,
@@ -18,6 +17,7 @@ class SizePanel extends StatelessWidget {
 
   final SizeEstimate estimate;
   final String suggestion;
+  final String summary;
   final bool measuring;
   final VoidCallback onMeasure;
   final VoidCallback onConvert;
@@ -29,156 +29,333 @@ class SizePanel extends StatelessWidget {
     final color = verdictColor(estimate.verdict, theme.colorScheme);
     final calibrated = estimate.confidence == EstimateConfidence.calibrated;
 
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      elevation: 8,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              estimate.formatted,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: color,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                estimate.verdict.label,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: color,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(Icons.data_usage_rounded, color: color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Estimativa de tamanho',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          calibrated
-                              ? 'Medido: entre ${estimate.formattedRange}'
-                              : 'Aproximado: entre ${estimate.formattedRange}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      estimate.formatted,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _verdictLabel(estimate.verdict),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Text(
-                          '${estimate.frames} quadros · '
-                          '${estimate.width}×${estimate.height} px · '
-                          '${estimate.durationSeconds.toStringAsFixed(1)}s',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${calibrated ? 'Estimativa medida' : 'Estimativa'}: ${estimate.formattedRange}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  summary,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _ImpactBar(verdict: estimate.verdict),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _contextMessage(estimate.verdict),
+                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: measuring ? null : onMeasure,
+                  icon: measuring
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 19),
+                  label: Text(
+                    measuring
+                        ? 'Medindo…'
+                        : calibrated
+                        ? 'Medir novamente'
+                        : 'Medir',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Compatibilidade',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _TargetsWrap(estimate: estimate, onFitTo: onFitTo),
+                if (suggestion.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    suggestion,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (!calibrated)
-                    OutlinedButton.icon(
-                      onPressed: measuring ? null : onMeasure,
-                      icon: measuring
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.speed, size: 18),
-                      label: Text(measuring ? 'Medindo…' : 'Medir'),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                  else
-                    Tooltip(
-                      message: EstimateConfidence.calibrated.explanation,
-                      child: Icon(
-                        Icons.verified_outlined,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              _TargetsRow(estimate: estimate, onFitTo: onFitTo),
-              const SizedBox(height: 8),
-              Text(suggestion, style: theme.textTheme.bodySmall),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                onPressed: onConvert,
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Converter em GIF'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Compartilhar',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Os atalhos ficam disponíveis após a geração do GIF.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: const [
+                    _ShareButton(label: 'WhatsApp', icon: Icons.chat_bubble_outline),
+                    _ShareButton(label: 'X', icon: Icons.alternate_email),
+                    _ShareButton(label: 'Discord', icon: Icons.forum_outlined),
+                    _ShareButton(label: 'Mais', icon: Icons.share_outlined),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: onConvert,
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Converter em GIF ✨'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(58),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _verdictLabel(SizeVerdict verdict) => switch (verdict) {
+    SizeVerdict.light => 'Leve',
+    SizeVerdict.good => 'Moderado',
+    SizeVerdict.heavy || SizeVerdict.tooHeavy => 'Pesado',
+  };
+
+  static String _contextMessage(SizeVerdict verdict) => switch (verdict) {
+    SizeVerdict.light => 'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
+    SizeVerdict.good =>
+      'O arquivo está um pouco maior. Reduza a resolução, FPS ou duração se desejar.',
+    SizeVerdict.heavy || SizeVerdict.tooHeavy =>
+      'O GIF pode ficar muito grande. Tente reduzir a duração, resolução ou FPS.',
+  };
+}
+
+class _ImpactBar extends StatelessWidget {
+  const _ImpactBar({required this.verdict});
+
+  final SizeVerdict verdict;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = switch (verdict) {
+      SizeVerdict.light => 0.16,
+      SizeVerdict.good => 0.5,
+      SizeVerdict.heavy => 0.78,
+      SizeVerdict.tooHeavy => 0.94,
+    };
+
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: 18,
+              child: Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF58C78C),
+                            borderRadius: BorderRadius.horizontal(left: Radius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(child: Container(height: 8, color: Color(0xFFB8B36A))),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Container(
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE57373),
+                            borderRadius: BorderRadius.horizontal(right: Radius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    left: (constraints.maxWidth - 14) * position,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        const Row(
+          children: [
+            Expanded(child: Text('Leve', style: TextStyle(fontSize: 11))),
+            Expanded(child: Text('Moderado', textAlign: TextAlign.center, style: TextStyle(fontSize: 11))),
+            Expanded(child: Text('Pesado', textAlign: TextAlign.end, style: TextStyle(fontSize: 11))),
+          ],
+        ),
+      ],
     );
   }
 }
 
-/// Mostra em quais destinos o GIF cabe. Tocar em um destino que não cabe
-/// ajusta as configurações automaticamente para caber.
-class _TargetsRow extends StatelessWidget {
-  const _TargetsRow({required this.estimate, required this.onFitTo});
+class _TargetsWrap extends StatelessWidget {
+  const _TargetsWrap({required this.estimate, required this.onFitTo});
 
   final SizeEstimate estimate;
   final void Function(ShareTarget target) onFitTo;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final targets = ShareTarget.targets
+        .where((target) =>
+            target.name == 'WhatsApp' ||
+            target.name == 'X / Twitter' ||
+            target.name.startsWith('Discord'))
+        .toList();
 
-    return SizedBox(
-      height: 32,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: ShareTarget.targets.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, index) {
-          final target = ShareTarget.targets[index];
-          final fits = estimate.fitsIn(target);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: targets.map((target) {
+        final fits = estimate.fitsIn(target);
+        return ActionChip(
+          avatar: Icon(
+            fits ? Icons.check_circle : Icons.warning_amber_rounded,
+            size: 17,
+            color: fits
+                ? const Color(0xFF58C78C)
+                : Theme.of(context).colorScheme.error,
+          ),
+          label: Text(target.name.replaceAll(' (grátis)', '')),
+          onPressed: fits ? null : () => onFitTo(target),
+          tooltip: fits
+              ? 'Compatível com o limite atual'
+              : 'Toque para ajustar automaticamente',
+        );
+      }).toList(),
+    );
+  }
+}
 
-          return ActionChip(
-            visualDensity: VisualDensity.compact,
-            avatar: Icon(
-              fits ? Icons.check_circle : Icons.error_outline,
-              size: 16,
-              color: fits ? const Color(0xFF2E7D32) : theme.colorScheme.error,
-            ),
-            label: Text(target.name, style: theme.textTheme.labelSmall),
-            onPressed: fits ? null : () => onFitTo(target),
-            tooltip: fits
-                ? 'Cabe no limite de ${SizeEstimate.formatBytes(target.limitBytes)}'
-                : 'Toque para ajustar e caber em '
-                      '${SizeEstimate.formatBytes(target.limitBytes)}',
-          );
-        },
-      ),
+class _ShareButton extends StatelessWidget {
+  const _ShareButton({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: null,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
     );
   }
 }
