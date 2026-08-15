@@ -29,3 +29,6 @@ android/key.properties
 
 # Arquivos gerados pelo Flutter a cada "pub get"
 android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# Pacotes gerados pelo workflow de release (rodam só no CI)
+entrega/

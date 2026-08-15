@@ -64,19 +64,14 @@ fechado, que não tem como pular nem acelerar. Comece por ele o quanto antes.
 git clone https://github.com/lianeheidemann/aplicativo-video-to-gif-1.git
 cd aplicativo-video-to-gif-1
 
-# Gera os arquivos que dependem da sua instalação local
-# (android/local.properties, wrapper do Gradle, ícones padrão).
-flutter create . --platforms=android --org=br.com.lianeheidemann
-
 flutter pub get
-flutter test          # os testes do estimador de peso devem passar
-flutter run            # com o celular conectado e depuração USB ligada
+flutter test   # os testes do estimador de peso devem passar
+flutter run    # com o celular conectado e a depuração USB ligada
 ```
 
-> **Sobre o `flutter create .`:** ele só preenche o que falta e **não
-> sobrescreve** os arquivos que já existem no repositório
-> (`AndroidManifest.xml`, `build.gradle.kts`, `MainActivity.kt`). Se em algum
-> momento ele reclamar de conflito, mantenha a versão do repositório.
+> O `gradlew` e o `android/local.properties` não são versionados (convenção do
+> Flutter) — a própria ferramenta os cria no primeiro build, apontando para o
+> SDK instalado na sua máquina.
 
 Se der erro de NDK, abra `android/app/build.gradle.kts` e ajuste
 `ndkVersion` para a versão que você instalou (o erro diz qual é).
@@ -231,6 +226,76 @@ Se o app abrir e converter um GIF sem travar, o AAB também vai funcionar.
 > Se o app funcionar em debug mas travar em release ao converter, quase
 > sempre é o R8 removendo classes do FFmpeg. As regras que evitam isso já
 > estão em `android/app/proguard-rules.pro`.
+
+---
+
+## Etapa 5b — Deixar o GitHub compilar por você (opcional, mas recomendado)
+
+Se a sua máquina não estiver com o ambiente Android pronto — ou se você quiser
+mandar o app para os testadores sem passar arquivo por WhatsApp — o
+repositório já tem um workflow que compila e publica tudo num Release do
+GitHub: `.github/workflows/release.yml`.
+
+### Como disparar
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Ou, sem mexer em tag: aba **Actions → Release → Run workflow**, digitando a
+versão.
+
+Em poucos minutos aparece um Release com:
+
+| Arquivo | Para que serve |
+|---|---|
+| `...-arm64-v8a.apk` | instalar em celular moderno (o que você manda para os testadores) |
+| `...-armeabi-v7a.apk` | aparelhos antigos, 32 bits |
+| `...-universal.apk` | funciona em qualquer aparelho, porém maior |
+| `....aab` | **o arquivo que vai para a Play Console** (só sai se a assinatura estiver configurada) |
+
+### Configurar a assinatura (para o AAB sair publicável)
+
+Sem os segredos abaixo, o workflow ainda funciona, mas assina com a chave de
+depuração: os APKs instalam e rodam para teste, e o `.aab` não é gerado,
+porque não teria serventia.
+
+Para habilitar a assinatura de verdade, transforme o seu keystore em texto:
+
+```bash
+base64 -w0 ~/chave-upload-videotogif.jks > chave-base64.txt
+# no macOS, sem a opção -w0:
+# base64 -i ~/chave-upload-videotogif.jks -o chave-base64.txt
+```
+
+Em **Settings → Secrets and variables → Actions → New repository secret**,
+crie quatro segredos:
+
+| Nome | Conteúdo |
+|---|---|
+| `KEYSTORE_BASE64` | todo o conteúdo de `chave-base64.txt` |
+| `KEYSTORE_PASSWORD` | a senha do keystore |
+| `KEY_PASSWORD` | a senha da chave (a mesma, se você usou uma só) |
+| `KEY_ALIAS` | `upload` |
+
+Depois **apague o `chave-base64.txt`** da sua máquina — ele é o keystore
+inteiro em texto.
+
+> ⚠️ Isto coloca uma cópia da sua chave de assinatura no GitHub. Segredos do
+> Actions são criptografados e não aparecem nos logs, e o workflow apaga o
+> arquivo do runner ao final. Ainda assim, quem tiver acesso de administrador
+> ao repositório pode extrair a chave modificando um workflow — mantenha o
+> repositório privado e a lista de colaboradores curta. Se preferir não correr
+> esse risco, não configure os segredos: gere o `.aab` na sua máquina e use o
+> Release só para distribuir APKs de teste.
+
+### O versionCode
+
+O workflow usa o número da execução do Actions como `versionCode`, que cresce
+sozinho a cada rodada. Isso resolve o erro mais chato de envio ("versionCode
+já existe") sem você precisar lembrar de nada. O `versionName` sai da tag:
+`v1.0.0` vira `1.0.0`.
 
 ---
 

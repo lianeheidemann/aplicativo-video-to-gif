@@ -143,6 +143,25 @@ FFmpeg — por isso dá para testá-lo inteiro sem emulador.
 de debug a cada push — esse último serve para pegar erro de Gradle, de fusão
 de manifesto e de empacotamento das bibliotecas nativas do FFmpeg.
 
+## Baixar o APK
+
+Cada versão publicada vira um
+[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif-1/releases)
+com os APKs prontos para instalar — comece pelo `arm64-v8a`, que serve para
+praticamente todo celular Android atual.
+
+Para gerar uma versão nova:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+O workflow `.github/workflows/release.yml` compila, nomeia e publica os
+arquivos sozinho. Configurando os segredos do keystore no repositório, ele
+também gera o `.aab` assinado que vai para a Play Console — o passo a passo
+está na [Etapa 5b do guia de publicação](docs/PUBLICAR_NA_PLAY_STORE.md).
+
 ## Stack
 
 | Camada | Escolha | Por quê |
