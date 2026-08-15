@@ -134,15 +134,51 @@ Todo APK/AAB precisa ser assinado. **Esta chave é para sempre**: se você
 perder, não consegue mais publicar atualizações do mesmo app — teria que
 começar um app novo, do zero, sem os usuários.
 
+> ⚠️ **Gere a chave na sua própria máquina.** Nunca crie o keystore de
+> produção num ambiente descartável — container, CI, máquina de nuvem, sessão
+> de agente. Ou você perde a chave quando o ambiente é destruído, ou precisa
+> transferi-la por um caminho inseguro. Esta é a única parte do processo que
+> não dá para terceirizar nem automatizar.
+
+O `keytool` vem junto com o Java. Se você não tiver Java instalado, ele está
+dentro do Android Studio, em `<pasta-do-android-studio>/jbr/bin/keytool`.
+O Android Studio também faz isso pela interface, em
+*Build → Generate Signed App Bundle → Create new…*.
+
+**Modo interativo** (pergunta a senha e os dados um por um):
+
 ```bash
-keytool -genkey -v \
+keytool -genkeypair -v \
   -keystore ~/chave-upload-videotogif.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -alias upload
 ```
 
-Ele vai pedir uma senha e alguns dados (nome, cidade, país — pode ser o seu
-nome e "BR").
+**Modo direto** (sem perguntas — troque o nome e a senha):
+
+```bash
+keytool -genkeypair -v \
+  -keystore ~/chave-upload-videotogif.jks \
+  -storepass SUA_SENHA_FORTE -keypass SUA_SENHA_FORTE \
+  -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=Seu Nome, O=, L=Sua Cidade, ST=UF, C=BR"
+```
+
+Os dados do `-dname` não aparecem para ninguém na loja: o certificado é
+autoassinado e serve só para provar que as versões vieram da mesma pessoa.
+O que importa de verdade é o arquivo e a senha.
+
+Confira se deu certo:
+
+```bash
+keytool -list -v -keystore ~/chave-upload-videotogif.jks
+```
+
+Deve aparecer `Alias name: upload`, a validade (uns 27 anos, com
+`-validity 10000`) e as impressões digitais SHA1 e SHA256.
+
+> A validade de 10.000 dias não é exagero: a Play Store exige um certificado
+> válido até pelo menos 22 de outubro de 2033.
 
 Agora crie o arquivo `android/key.properties` (copie de
 `android/key.properties.example`):
