@@ -1,4 +1,4 @@
-name: Release new-interface v1.1.0
+name: Release new-interface v1.1.1
 
 # Build de release isolado dos widget tests legados da interface anterior.
 on:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release:
-    name: Build and publish v1.1.0
+    name: Build and publish v1.1.1
     runs-on: ubuntu-latest
 
     steps:
@@ -53,11 +53,11 @@ jobs:
       - name: Compilar APKs release
         run: |
           mkdir -p entrega
-          flutter build apk --release --split-per-abi --build-name=1.1.0 --build-number=${{ github.run_number }}
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk entrega/video-em-gif-1.1.0-arm64-v8a.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk entrega/video-em-gif-1.1.0-armeabi-v7a.apk
-          flutter build apk --release --build-name=1.1.0 --build-number=${{ github.run_number }}
-          cp build/app/outputs/flutter-apk/app-release.apk entrega/video-em-gif-1.1.0-universal.apk
+          flutter build apk --release --split-per-abi --build-name=1.1.1 --build-number=${{ github.run_number }}
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk entrega/video-em-gif-1.1.1-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk entrega/video-em-gif-1.1.1-armeabi-v7a.apk
+          flutter build apk --release --build-name=1.1.1 --build-number=${{ github.run_number }}
+          cp build/app/outputs/flutter-apk/app-release.apk entrega/video-em-gif-1.1.1-universal.apk
 
       - name: Limpar chave
         if: always()
@@ -66,15 +66,16 @@ jobs:
       - name: Publicar Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: Vídeo em GIF 1.1.0
+          tag_name: v1.1.1
+          name: Vídeo em GIF 1.1.1
           target_commitish: new-interface
           files: entrega/*
           fail_on_unmatched_files: true
           body: |
             Nova versão baseada na branch `new-interface`.
 
-            Inclui o redesign da tela Ajustar GIF e o recorte redimensionável/personalizado.
+            Inclui redimensionamento direto da moldura de recorte pelas alças dos quatro cantos no preview.
+            No modo Personalizado, largura e altura são livres; nos formatos fixos, a proporção é preservada.
 
-            Para a maioria dos celulares Android atuais, use `video-em-gif-1.1.0-arm64-v8a.apk`.
+            Para a maioria dos celulares Android atuais, use `video-em-gif-1.1.1-arm64-v8a.apk`.
             O `universal` é maior, mas serve como alternativa de compatibilidade.
