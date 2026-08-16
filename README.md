@@ -36,7 +36,7 @@ spend time converting it**.
 
 ### Screenshots
 
-<img src="assets/image/1578a6fcea066bf144c7a800be8459aec78c2c99fbcb3232f5134536a3739df7.png"/>
+<img src="assets/image/interface-v4.png"/>
 
 ### GIF
 
