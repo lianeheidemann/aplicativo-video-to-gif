@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="38" viewBox="0 0 220 38" role="img" aria-labelledby="title desc">
+  <title id="title">Under construction</title>
+  <desc id="desc">Theme-adaptive lavender badge with animated dots appearing one at a time.</desc>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --text: #4A3B67;
+      --border: #B89BEA;
+      --bubble-start: #F2ECFF;
+      --bubble-end: #9B78DF;
+      --bubble-small: #D7C6F7;
+      --bubble-highlight: #FFFFFF;
+      --dots: #8C67D5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #F7F3FF;
+        --border: #CBB8F2;
+        --bubble-start: #F5F0FF;
+        --bubble-end: #A98AE6;
+        --bubble-small: #DED2F7;
+        --bubble-highlight: #FFFFFF;
+        --dots: #D8C8F6;
+      }
+    }
+
+    .badge-border { stroke: var(--border); }
+    .badge-text { fill: var(--text); }
+    .badge-dots { fill: var(--dots); }
+    .bubble-small { fill: var(--bubble-small); }
+    .bubble-highlight { fill: var(--bubble-highlight); }
+  </style>
+
+  <defs>
+    <linearGradient id="bubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--bubble-start)"/>
+      <stop offset="1" stop-color="var(--bubble-end)"/>
+    </linearGradient>
+  </defs>
+
+  <rect class="badge-border" x="1" y="1" width="218" height="36" rx="18"
+        fill="none" stroke-width="1.5"/>
+
+  <text class="badge-text" x="24" y="23.5"
+        font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace"
+        font-size="12.5"
+        font-weight="700">under construction<tspan class="badge-dots">.<animate attributeName="opacity" dur="2s" repeatCount="indefinite" calcMode="discrete" values="0;1;1;1;0" keyTimes="0;0.2;0.4;0.95;1"/></tspan><tspan class="badge-dots">.<animate attributeName="opacity" dur="2s" repeatCount="indefinite" calcMode="discrete" values="0;0;1;1;0" keyTimes="0;0.2;0.4;0.95;1"/></tspan><tspan class="badge-dots">.<animate attributeName="opacity" dur="2s" repeatCount="indefinite" calcMode="discrete" values="0;0;0;1;0" keyTimes="0;0.2;0.4;0.6;1"/></tspan></text>
+</svg>
