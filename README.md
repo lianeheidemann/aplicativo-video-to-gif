@@ -33,11 +33,11 @@ gastar tempo convertendo**.
 
 ## Interface
 
-**Prints**
+#### Prints
 
 <img src="assets/interface.png"/>
 
-**GIF**
+#### GIF
 
 <img width="35%" src="assets/demonstration.gif"/>
 
