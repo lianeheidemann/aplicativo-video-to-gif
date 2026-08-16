@@ -174,3 +174,7 @@ vai para a Play Console — o passo a passo está na
 
 Código do aplicativo: MIT.
 FFmpeg: LGPL-2.1-or-later — veja [`docs/LICENCAS.md`](docs/LICENCAS.md).
+
+---
+
+<p align="center">Developed by <strong>Liane Heidemann</strong></p>
