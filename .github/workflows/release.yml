@@ -55,8 +55,12 @@ jobs:
 
       - run: flutter pub get
 
-      # Os testes de interface continuam no workflow CI. O release apenas
-      # compila e publica os artefatos instaláveis.
+      # Este passo já esteve desativado, quando os testes de interface estavam
+      # quebrados e travavam a publicação do APK. Eles passam desde então, e a
+      # trava é justamente o que se quer aqui: um APK publicado é o artefato
+      # que as pessoas instalam, e não deve sair sem a suíte ter rodado.
+      - name: Testes
+        run: flutter test
 
       - name: Definir a versão
         id: versao
