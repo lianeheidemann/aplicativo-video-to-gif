@@ -23,6 +23,7 @@ Aplicativo Android que converte vídeos comuns (MP4, MOV, AVI, MKV, WEBM, 3GP)
 em GIF, com controle de corte, proporção, velocidade, resolução e quadros por
 segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
 gastar tempo convertendo**.
+<br>
 
 > Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
 > internet.

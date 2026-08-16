@@ -18,6 +18,7 @@ on:
     branches: ['main']
     paths:
       - 'pubspec.yaml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       versao:
@@ -54,8 +55,8 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Testes
-        run: flutter test
+      # Os testes de interface continuam no workflow CI. O release apenas
+      # compila e publica os artefatos instaláveis.
 
       - name: Definir a versão
         id: versao
