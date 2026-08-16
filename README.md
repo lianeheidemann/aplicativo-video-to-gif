@@ -33,15 +33,17 @@ spend time converting it**.
 
 <br>
 
-## Interface
+## Gif
 
 <div align="center">
-
-<img src="assets/image/interface-v4.png"/>
 
 <img width="20%" src="assets/demonstration-v2-com-moldura-celular-transparente.gif"/>
 
 </div>
+
+## Interface
+
+<img src="assets/image/interface-v4.png"/>
 
 ## The problem it solves
 
