@@ -2,15 +2,15 @@
 
 <img width="110" src="assets/icon.png"/>
 
-# Vídeo em GIF
+# Video to GIF
 
 ![Beta Version](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=for-the-badge)
 
-**Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
+**Video-to-GIF converter built in Flutter, with file-size estimation before conversion**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
-[![Versão](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=vers%C3%A3o&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
-[![Licença](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=licen%C3%A7a&labelColor=372b4d&color=d68fe0&cacheSeconds=3600)](LICENSE)
+[![Version](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=version&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
+[![License](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=license&labelColor=372b4d&color=d68fe0&cacheSeconds=3600)](LICENSE)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
 ![Dart](https://img.shields.io/badge/Dart-3.12%2B-7c53c9?style=flat-square&logo=dart&logoColor=white&labelColor=372b4d)
@@ -19,20 +19,20 @@
 
 </div>
 
-Aplicativo Android que converte vídeos comuns (MP4, MOV, AVI, MKV, WEBM, 3GP)
-em GIF, com controle de corte, proporção, velocidade, resolução e quadros por
-segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
-gastar tempo convertendo**.
+Android app that converts common video formats (MP4, MOV, AVI, MKV, WEBM,
+3GP) to GIF, with control over trimming, aspect ratio, speed, resolution and
+frame rate — and, above all, **showing how big the file will be before you
+spend time converting it**.
 
-> Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
-> internet.
+> All conversion runs on-device with FFmpeg. The app has no internet
+> permission.
 >
-> **[⬇ Baixar o APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
-> — instala direto no Android, sem loja.
+> **[⬇ Download the APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
+> — installs straight onto Android, no store needed.
 
 ## Interface
 
-### Prints
+### Screenshots
 
 <img src="assets/interface.png"/>
 
@@ -40,54 +40,59 @@ gastar tempo convertendo**.
 
 <img width="35%" src="assets/demonstration.gif"/>
 
-## O problema que ele resolve
+## The problem it solves
 
-Converter vídeo em GIF é lento, e o peso do resultado é imprevisível: o mesmo
-ajuste que produz 800 KB num vídeo produz 14 MB em outro, porque depende de
-quanto a cena se mexe. O caminho normal é converter, ver que ficou grande,
-ajustar e converter de novo — vários minutos por tentativa.
+Converting video to GIF is slow, and the output size is unpredictable: the
+same settings that produce 800 KB for one video produce 14 MB for another,
+because it depends on how much the scene moves. The usual workflow is
+convert, see it came out too big, adjust and convert again — several minutes
+per attempt.
 
-Este app inverte isso:
+This app flips that around:
 
-1. **Estimativa instantânea** enquanto você mexe nos controles, sem converter
-   nada. Antes de qualquer medição o número sai de um palpite baseado no
-   bitrate do arquivo, e a faixa exibida é larga de propósito (±40% a ±55%).
-2. **Botão "Medir"**, que converte dois trechos de até um segundo com as
-   mesmas configurações escolhidas e usa o tamanho real deles para calibrar o
-   cálculo — a partir daí a faixa exibida passa a ser de ±15%. O modelo separa
-   o custo do primeiro quadro (uma imagem completa) do custo dos seguintes (só
-   o retângulo que mudou), que é o que permite medir 1 segundo e prever 40 sem
-   inflar o número numa cena parada.
-3. **Semáforo de destinos**: mostra se o GIF cabe no WhatsApp, no X/Twitter e
-   no Discord. Se não couber, um toque ajusta as configurações para caber.
+1. **Instant estimate** while you adjust the controls, without converting
+   anything. Before any measurement the number comes from a guess based on
+   the file's bitrate, and the displayed range is deliberately wide (±40% to
+   ±55%).
+2. **"Measure" button**, which converts two clips of up to one second each
+   with the chosen settings and uses their real size to calibrate the
+   calculation — from then on the displayed range narrows to ±15%. The model
+   separates the cost of the first frame (a full image) from the cost of the
+   following ones (just the rectangle that changed), which is what lets it
+   measure 1 second and predict 40 without inflating the number for a static
+   scene.
+3. **Destination traffic light**: shows whether the GIF fits within
+   WhatsApp's, X/Twitter's and Discord's limits. If it doesn't fit, one tap
+   adjusts the settings so it does.
 
-Como isso funciona por dentro está em
+How this works under the hood is documented in
 [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md).
 
-## Funcionalidades
+## Features
 
-- **Prévia do vídeo** com play/pause e linha do tempo marcando o trecho
-  escolhido
-- **Corte de duração** — arraste as pontas do seletor para escolher o trecho
-- **Formato da janela** — Original, 1:1, 4:5, 9:16, 16:9 e Personalizado, com
-  redimensionamento pelas alças dos quatro cantos direto na prévia e barras
-  para reposicionar o recorte
-- **Velocidade** — 0,25x (câmera lenta) a 2x
-- **Resolução** — de 160 px a 800 px de largura, oferecendo só as opções que
-  não ampliam o vídeo original
-- **Quadros por segundo** — 5, 8, 10, 12, 15, 20 ou 24
-- **Qualidade de cor** — paleta de 64, 128 ou 256 cores, cinco níveis de
-  suavização (dither) e três estratégias de paleta
-- **Repetição** — GIF em loop infinito ou tocando uma vez só
-- **Conversão em duas passagens** (`palettegen` + `paletteuse`), que é o que
-  separa um GIF bonito de um GIF "lavado"
-- **Progresso com cancelamento**
-- **Salvar na galeria e compartilhar**, com a tela final mostrando o quanto a
-  previsão errou em relação ao arquivo gerado
+- **Video preview** with play/pause and a timeline marking the selected
+  clip
+- **Duration trim** — drag the selector's handles to choose the clip
+- **Crop aspect ratio** — Original, 1:1, 4:5, 9:16, 16:9 and Custom, with
+  resizing via the four corner handles directly on the preview and bars to
+  reposition the crop
+- **Speed** — 0.25x (slow motion) to 2x
+- **Resolution** — from 160 px to 800 px wide, only offering options that
+  don't upscale the original video
+- **Frame rate** — 5, 8, 10, 12, 15, 20 or 24
+- **Color quality** — palette of 64, 128 or 256 colors, five dithering
+  levels and three palette strategies
+- **Looping** — infinite loop or play once
+- **Two-pass conversion** (`palettegen` + `paletteuse`), which is what
+  separates a good-looking GIF from a "washed out" one
+- **Progress with cancellation**
+- **Save to gallery and share**, with the final screen showing how far off
+  the prediction was from the generated file
 
-## Como rodar
+## How to run it
 
-Requer Flutter 3.44+ (Dart 3.12+) e o Android SDK (API 36) com NDK instalados.
+Requires Flutter 3.44+ (Dart 3.12+) and the Android SDK (API 36) with NDK
+installed.
 
 ```bash
 git clone https://github.com/lianeheidemann/aplicativo-video-to-gif.git
@@ -98,128 +103,132 @@ flutter test
 flutter run
 ```
 
-O CI fixa a versão do Flutter em **3.47.0** (`FLUTTER_VERSION` em
-`.github/workflows/ci.yml`). Se o `dart format` reclamar aqui e passar na sua
-máquina, é quase sempre diferença de versão — rode na mesma.
+CI pins the Flutter version to **3.47.0** (`FLUTTER_VERSION` in
+`.github/workflows/ci.yml`). If `dart format` complains there but passes on
+your machine, it's almost always a version mismatch — run it on the same
+one.
 
-## Estrutura
+## Structure
 
 ```
 lib/
-├── main.dart                       # ponto de entrada
-├── licenses.dart                   # aviso de licença do FFmpeg (LGPL)
-├── theme.dart                      # tema Material 3 e cores do veredito
+├── main.dart                       # entry point
+├── licenses.dart                   # FFmpeg license notice (LGPL)
+├── theme.dart                      # Material 3 theme and verdict colors
 ├── models/
-│   ├── video_info.dart             # metadados lidos pelo FFprobe
-│   ├── conversion_settings.dart    # tudo que o usuário controla
-│   └── size_estimate.dart          # resultado da estimativa e classificação
+│   ├── video_info.dart             # metadata read via FFprobe
+│   ├── conversion_settings.dart    # everything the user controls
+│   └── size_estimate.dart          # estimate result and classification
 ├── services/
-│   ├── size_estimator.dart         # o modelo de previsão de peso (Dart puro)
-│   ├── ffmpeg_service.dart         # leitura, medição e conversão
-│   └── output_service.dart         # galeria e compartilhamento
+│   ├── size_estimator.dart         # the size-prediction model (pure Dart)
+│   ├── ffmpeg_service.dart         # reading, measuring and converting
+│   └── output_service.dart         # gallery and sharing
 └── ui/
-    ├── home_page.dart              # escolha do vídeo
-    ├── editor_page.dart            # controles + prévia com recorte
-    ├── converting_page.dart        # progresso e cancelamento
-    ├── result_page.dart            # GIF pronto, salvar e compartilhar
+    ├── home_page.dart              # video selection
+    ├── editor_page.dart            # controls + preview with cropping
+    ├── converting_page.dart        # progress and cancellation
+    ├── result_page.dart            # finished GIF, save and share
     └── widgets/
-        ├── labeled_section.dart    # card expansível e chips de opção
-        └── size_panel.dart         # painel de peso e compatibilidade
+        ├── labeled_section.dart    # expandable card and option chips
+        └── size_panel.dart         # size and compatibility panel
 
 test/
-├── size_estimator_test.dart        # 30 testes do modelo de estimativa
-├── size_estimator_medicoes_test.dart  # 7 testes contra medições reais
-└── size_panel_test.dart            # 10 testes do painel de peso
+├── size_estimator_test.dart        # 30 tests for the estimation model
+├── size_estimator_medicoes_test.dart  # 7 tests against real measurements
+└── size_panel_test.dart            # 10 tests for the size panel
 
 docs/
-├── COMO_A_ESTIMATIVA_FUNCIONA.md   # o modelo de peso por dentro
-├── LICENCAS.md                     # obrigações da LGPL do FFmpeg
-├── POLITICA_DE_PRIVACIDADE.md      # modelo exigido pela Play Console
-└── PUBLICAR_NA_PLAY_STORE.md       # guia de publicação, do zero ao ar
+├── COMO_A_ESTIMATIVA_FUNCIONA.md   # the size model under the hood
+├── LICENCAS.md                     # obligations of FFmpeg's LGPL
+├── POLITICA_DE_PRIVACIDADE.md      # template required by Play Console
+└── PUBLICAR_NA_PLAY_STORE.md       # publishing guide, start to finish
 
-loja/                               # ficha e artes prontas para a Play Store
+loja/                               # store listing copy and artwork, ready for the Play Store
 
 tool/
-├── gerar_icones.py                 # gera o ícone do app e o adaptativo
-└── medir_precisao.py               # mede o erro real do modelo com FFmpeg
+├── gerar_icones.py                 # generates the app icon and adaptive icon
+└── medir_precisao.py               # measures the model's real error against FFmpeg
 
 .github/workflows/
-├── ci.yml                          # formatação, análise, testes e APK debug
-└── release.yml                     # publica os APKs num Release
+├── ci.yml                          # formatting, analysis, tests and debug APK
+└── release.yml                     # publishes the APKs to a Release
 ```
 
-O `size_estimator.dart` é Dart puro, sem dependência do Flutter nem do
-FFmpeg — por isso dá para testá-lo inteiro sem emulador.
+`size_estimator.dart` is pure Dart, with no dependency on Flutter or
+FFmpeg — which is why it can be fully tested without an emulator.
 
-## Qualidade
+## Quality
 
-São **47 testes automatizados**: 30 cobrindo o modelo de estimativa
-(dimensões de saída, contagem de quadros, monotonicidade, calibração, ajuste
-automático para um alvo e classificação), 10 cobrindo o painel de peso e 7
-comparando a previsão com **arquivos que o FFmpeg realmente gerou**.
+There are **47 automated tests**: 30 covering the estimation model (output
+dimensions, frame count, monotonicity, calibration, automatic adjustment to
+a target and classification), 10 covering the size panel, and 7 comparing
+the prediction against **files FFmpeg actually generated**.
 
-Esses últimos merecem destaque: `tool/medir_precisao.py` produz cinco vídeos
-sintéticos que vão do cartão de título estático ao ruído incompressível,
-converte cada um e guarda os tamanhos; o teste alimenta o modelo com essas
-medições e cobra o erro. Depois de calibrar, a previsão fica em **±1% em três
-dos cinco casos e em −7% no quarto**. O quinto é um GIF de 39 KB, escala em
-que errar 17 KB já vira −44% — nele o teste cobra erro absoluto, não relativo.
-A tabela completa, com os dois casos que ainda erram e o porquê de cada um,
-está em
+The last group deserves a special mention: `tool/medir_precisao.py`
+produces five synthetic videos ranging from a static title card to
+incompressible noise, converts each one and records the sizes; the test
+feeds the model those measurements and checks the error. Once calibrated,
+the prediction lands within **±1% for three of the five cases and −7% for
+the fourth**. The fifth is a 39 KB GIF, a scale where missing by 17 KB
+already means −44% — for that one the test checks absolute error, not
+relative. The full table, including the two cases that still miss and why,
+is in
 [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md).
 
-O workflow em `.github/workflows/ci.yml` roda, a cada push, `dart format`,
-`flutter analyze`, `flutter test` e um build do APK de debug — esse último
-serve para pegar erro de Gradle, de fusão de manifesto e de empacotamento das
-bibliotecas nativas do FFmpeg.
+The workflow in `.github/workflows/ci.yml` runs, on every push, `dart
+format`, `flutter analyze`, `flutter test` and a debug APK build — the
+latter catches Gradle errors, manifest-merging issues and packaging
+problems with FFmpeg's native libraries.
 
-## Baixar o APK
+## Download the APK
 
-Cada versão publicada vira um
+Every published version becomes a
 [Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
-com os APKs prontos para instalar — comece pelo `arm64-v8a`, que serve para
-praticamente todo celular Android atual. O `universal` é maior, mas funciona
-em qualquer aparelho.
+with ready-to-install APKs — start with `arm64-v8a`, which covers
+practically every current Android phone. `universal` is larger, but works
+on any device.
 
-Para gerar uma versão nova:
+To cut a new version:
 
 ```bash
 git tag v1.1.2
 git push origin v1.1.2
 ```
 
-O workflow `.github/workflows/release.yml` compila, nomeia e publica os
-arquivos sozinho (também dá para dispará-lo pela aba Actions).
+The `.github/workflows/release.yml` workflow builds, names and publishes
+the files on its own (it can also be triggered manually from the Actions
+tab).
 
-A tag deve bater com o `version` do `pubspec.yaml` (hoje `1.1.2+2`). O número
-depois do `+` é o `versionCode` do Android e **precisa aumentar** a cada envio
-para a Play Store — sem isso o upload é recusado.
+The tag must match the `version` in `pubspec.yaml` (currently `1.1.2+2`).
+The number after the `+` is Android's `versionCode` and **must increase**
+with every submission to the Play Store — otherwise the upload is
+rejected.
 
 ## Stack
 
-| Camada | Escolha | Por quê |
+| Layer | Choice | Why |
 |---|---|---|
-| Interface | Flutter 3.44 (Material 3) | um código só, com visual nativo no Android |
-| Conversão | `ffmpeg_kit_flutter_new_min` (FFmpeg LGPL) | variante sem componentes GPL, permite app de código fechado |
-| Escolha de arquivo | `file_picker` | usa o seletor do sistema, sem exigir permissão de mídia |
-| Prévia | `video_player` | mostra o trecho e a moldura de recorte antes de converter |
-| Saída | `gal` + `share_plus` | salvar na galeria e compartilhar |
+| Interface | Flutter 3.44 (Material 3) | one codebase, with a native Android look |
+| Conversion | `ffmpeg_kit_flutter_new_min` (FFmpeg LGPL) | variant without GPL components, allows closed-source distribution |
+| File picking | `file_picker` | uses the system picker, no media permission required |
+| Preview | `video_player` | shows the clip and crop frame before converting |
+| Output | `gal` + `share_plus` | save to gallery and share |
 
-## Documentação
+## Documentation
 
-| Documento | Para quê |
+| Document | What it's for |
 |---|---|
-| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) | como o peso é previsto, a calibração e a tabela de erro medido |
-| [`docs/LICENCAS.md`](docs/LICENCAS.md) | o que a LGPL do FFmpeg obriga antes de publicar |
-| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) | passo a passo da publicação, incluindo o teste fechado de 14 dias |
-| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) | modelo de política, obrigatório mesmo sem coleta de dados |
-| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) | textos da ficha já dentro dos limites da Play Console |
+| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) | how the size is predicted, calibration and the measured-error table |
+| [`docs/LICENCAS.md`](docs/LICENCAS.md) | what FFmpeg's LGPL requires before publishing |
+| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) | step-by-step publishing guide, including the 14-day closed test |
+| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) | privacy policy template, required even with no data collection |
+| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) | store listing copy, already within Play Console's limits |
 
-## Licença
+## License
 
-Código do aplicativo: [MIT](LICENSE).
-FFmpeg: LGPL-2.1-or-later — atribuição em [`NOTICE`](NOTICE), detalhes e
-obrigações em [`docs/LICENCAS.md`](docs/LICENCAS.md).
+App code: [MIT](LICENSE).
+FFmpeg: LGPL-2.1-or-later — attribution in [`NOTICE`](NOTICE), details and
+obligations in [`docs/LICENCAS.md`](docs/LICENCAS.md).
 
 ---
 
