@@ -4,6 +4,8 @@
 
 # Vídeo em GIF
 
+![Beta Version](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=for-the-badge)
+
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
