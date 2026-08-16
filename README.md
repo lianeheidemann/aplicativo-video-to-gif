@@ -23,16 +23,23 @@ em GIF, com controle de corte, proporção, velocidade, resolução e quadros po
 segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
 gastar tempo convertendo**.
 
-
-<img src="assets/interface.png"/>
-
-<img src="assets/demonstration.gif"/>
-
 > Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
 > internet.
 >
 > **[⬇ Baixar o APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
 > — instala direto no Android, sem loja.
+
+---
+
+## Interface
+
+**Prints**
+
+<img src="assets/interface.png"/>
+
+**GIF**
+
+<img width="35%" src="assets/demonstration.gif"/>
 
 ---
 
