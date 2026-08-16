@@ -4,13 +4,12 @@
 
 # Vídeo em GIF
 
-![Beta Version](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=for-the-badge)
+![Beta](https://img.shields.io/badge/beta-8B5CF6?style=flat-square&labelColor=372b4d)
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
 [![Versão](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=vers%C3%A3o&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
-[![Testes](https://img.shields.io/badge/testes-47-b79cf2?style=flat-square&labelColor=372b4d)](test)
 [![Licença](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=licen%C3%A7a&labelColor=372b4d&color=d68fe0)](LICENSE)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
@@ -18,14 +17,12 @@
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-LGPL-b79cf2?style=flat-square&logo=ffmpeg&logoColor=white&labelColor=372b4d)
 
-<br>
 </div>
 
 Aplicativo Android que converte vídeos comuns (MP4, MOV, AVI, MKV, WEBM, 3GP)
 em GIF, com controle de corte, proporção, velocidade, resolução e quadros por
 segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
 gastar tempo convertendo**.
-<br>
 
 > Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
 > internet.
@@ -35,11 +32,11 @@ gastar tempo convertendo**.
 
 ## Interface
 
-#### Prints
+### Prints
 
 <img src="assets/interface.png"/>
 
-#### GIF
+### GIF
 
 <img width="35%" src="assets/demonstration.gif"/>
 
