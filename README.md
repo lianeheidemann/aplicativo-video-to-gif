@@ -12,7 +12,7 @@
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-LGPL-b79cf2?style=flat-square&logo=ffmpeg&logoColor=white&labelColor=372b4d)
 
-![Beta Version](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=for-the-badge)
+<img src="assets/badge/beta-version-animated-rounded.svg"/>
 
 </div>
 
