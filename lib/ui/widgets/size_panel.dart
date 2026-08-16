@@ -116,7 +116,9 @@ class SizePanel extends StatelessWidget {
                     Expanded(
                       child: Text(
                         _contextMessage(estimate.verdict),
-                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.4,
+                        ),
                       ),
                     ),
                   ],
@@ -186,7 +188,10 @@ class SizePanel extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: const [
-                    _ShareButton(label: 'WhatsApp', icon: Icons.chat_bubble_outline),
+                    _ShareButton(
+                      label: 'WhatsApp',
+                      icon: Icons.chat_bubble_outline,
+                    ),
                     _ShareButton(label: 'X', icon: Icons.alternate_email),
                     _ShareButton(label: 'Discord', icon: Icons.forum_outlined),
                     _ShareButton(label: 'Mais', icon: Icons.share_outlined),
@@ -201,9 +206,7 @@ class SizePanel extends StatelessWidget {
           onPressed: onConvert,
           icon: const Icon(Icons.auto_awesome),
           label: const Text('Converter em GIF ✨'),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(58),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(58)),
         ),
       ],
     );
@@ -216,7 +219,8 @@ class SizePanel extends StatelessWidget {
   };
 
   static String _contextMessage(SizeVerdict verdict) => switch (verdict) {
-    SizeVerdict.light => 'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
+    SizeVerdict.light =>
+      'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
     SizeVerdict.good =>
       'O arquivo está um pouco maior. Reduza a resolução, FPS ou duração se desejar.',
     SizeVerdict.heavy || SizeVerdict.tooHeavy =>
@@ -254,19 +258,25 @@ class _ImpactBar extends StatelessWidget {
                           height: 8,
                           decoration: const BoxDecoration(
                             color: Color(0xFF58C78C),
-                            borderRadius: BorderRadius.horizontal(left: Radius.circular(8)),
+                            borderRadius: BorderRadius.horizontal(
+                              left: Radius.circular(8),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 3),
-                      Expanded(child: Container(height: 8, color: Color(0xFFB8B36A))),
+                      Expanded(
+                        child: Container(height: 8, color: Color(0xFFB8B36A)),
+                      ),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Container(
                           height: 8,
                           decoration: const BoxDecoration(
                             color: Color(0xFFE57373),
-                            borderRadius: BorderRadius.horizontal(right: Radius.circular(8)),
+                            borderRadius: BorderRadius.horizontal(
+                              right: Radius.circular(8),
+                            ),
                           ),
                         ),
                       ),
@@ -296,8 +306,20 @@ class _ImpactBar extends StatelessWidget {
         const Row(
           children: [
             Expanded(child: Text('Leve', style: TextStyle(fontSize: 11))),
-            Expanded(child: Text('Moderado', textAlign: TextAlign.center, style: TextStyle(fontSize: 11))),
-            Expanded(child: Text('Pesado', textAlign: TextAlign.end, style: TextStyle(fontSize: 11))),
+            Expanded(
+              child: Text(
+                'Moderado',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                'Pesado',
+                textAlign: TextAlign.end,
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
           ],
         ),
       ],
@@ -314,10 +336,12 @@ class _TargetsWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final targets = ShareTarget.targets
-        .where((target) =>
-            target.name == 'WhatsApp' ||
-            target.name == 'X / Twitter' ||
-            target.name.startsWith('Discord'))
+        .where(
+          (target) =>
+              target.name == 'WhatsApp' ||
+              target.name == 'X / Twitter' ||
+              target.name.startsWith('Discord'),
+        )
         .toList();
 
     return Wrap(

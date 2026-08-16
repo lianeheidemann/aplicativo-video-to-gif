@@ -6,6 +6,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A versão do Flutter é fixada de propósito. Com `channel: stable` sozinho, o
+# runner pega a stable mais nova do dia e o resultado do CI passa a depender da
+# data em que rodou — o `dart format` muda de opinião entre versões e o build
+# quebra sem ninguém ter mexido no código. Para atualizar: suba o número aqui,
+# rode `dart format lib test` localmente na mesma versão e comite as duas
+# coisas juntas.
+env:
+  FLUTTER_VERSION: '3.47.0'
+
 jobs:
   analise-e-testes:
     name: Análise e testes
@@ -16,17 +25,24 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - run: flutter pub get
 
+      # Os três passos abaixo rodam sempre, mesmo depois de um falhar. Sem
+      # isso, um deslize de formatação aborta o job e esconde os erros de
+      # análise e de teste, que só aparecem no push seguinte.
       - name: Conferir formatação
+        if: ${{ !cancelled() }}
         run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Análise estática
+        if: ${{ !cancelled() }}
         run: flutter analyze
 
       - name: Testes
+        if: ${{ !cancelled() }}
         run: flutter test
 
   build-android:
@@ -47,6 +63,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - run: flutter pub get

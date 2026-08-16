@@ -28,6 +28,11 @@ on:
 permissions:
   contents: write
 
+# Mesma versão fixada no ci.yml: o APK publicado tem que sair do mesmo
+# toolchain que passou nos testes.
+env:
+  FLUTTER_VERSION: '3.47.0'
+
 jobs:
   build:
     name: Compilar e publicar
@@ -44,6 +49,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - run: flutter pub get

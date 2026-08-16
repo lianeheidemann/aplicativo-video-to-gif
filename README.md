@@ -8,7 +8,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
 [![Versão](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=vers%C3%A3o&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
-[![Testes](https://img.shields.io/badge/testes-38-b79cf2?style=flat-square&labelColor=372b4d)](test)
+[![Testes](https://img.shields.io/badge/testes-39-b79cf2?style=flat-square&labelColor=372b4d)](test)
 [![Licença](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=licen%C3%A7a&labelColor=372b4d&color=d68fe0)](LICENSE)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
@@ -115,7 +115,7 @@ lib/
 
 test/
 ├── size_estimator_test.dart        # 29 testes do modelo de estimativa
-└── size_panel_test.dart            # 9 testes do painel de peso
+└── size_panel_test.dart            # 10 testes do painel de peso
 
 docs/                               # estimativa, licenças e privacidade
 
@@ -132,9 +132,9 @@ FFmpeg — por isso dá para testá-lo inteiro sem emulador.
 
 ## Qualidade
 
-São **38 testes automatizados**: 29 cobrindo o modelo de estimativa
+São **39 testes automatizados**: 29 cobrindo o modelo de estimativa
 (dimensões de saída, contagem de quadros, monotonicidade, calibração, ajuste
-automático para um alvo e classificação) e 9 cobrindo o painel de peso.
+automático para um alvo e classificação) e 10 cobrindo o painel de peso.
 
 O workflow em `.github/workflows/ci.yml` roda, a cada push, `dart format`,
 `flutter analyze`, `flutter test` e um build do APK de debug — esse último
