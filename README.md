@@ -16,6 +16,7 @@
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-LGPL-b79cf2?style=flat-square&logo=ffmpeg&logoColor=white&labelColor=372b4d)
 
+<br>
 </div>
 
 Aplicativo Android que converte vídeos comuns (MP4, MOV, AVI, MKV, WEBM, 3GP)
@@ -38,8 +39,6 @@ gastar tempo convertendo**.
 #### GIF
 
 <img width="35%" src="assets/demonstration.gif"/>
-
----
 
 ## O problema que ele resolve
 
