@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="123" height="28" viewBox="0 0 123 28" role="img" aria-label="BETA VERSION">
+  <title>BETA VERSION</title>
+  <defs>
+    <clipPath id="badgeClip">
+      <rect width="123" height="28" rx="6" ry="6"/>
+    </clipPath>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="123" height="28" rx="6" ry="6" fill="#8b5cf6">
+    <animate attributeName="fill" values="#8b5cf6;#9b6cf8;#8b5cf6" dur="3s" repeatCount="indefinite"/>
+  </rect>
+
+  <g clip-path="url(#badgeClip)">
+    <rect x="-42" y="0" width="34" height="28" fill="url(#shine)" transform="skewX(-18)">
+      <animate attributeName="x" values="-42;150" dur="2.4s" begin="0.4s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="100">
+    <text transform="scale(.1)" x="615" y="175" textLength="990" font-weight="bold">
+      BETA VERSION
+      <animate attributeName="opacity" values="1;0.88;1" dur="3s" repeatCount="indefinite"/>
+    </text>
+  </g>
+</svg>
