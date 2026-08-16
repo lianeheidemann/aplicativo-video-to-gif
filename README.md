@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="110" src="assets/icon-v6.png"/>
+<img width="110" src="assets/icon-v1.png"/>
 
 # Vídeo para GIF
 <img width="210" src="assets/badge_under-construction_lavanda.svg"/><br>
