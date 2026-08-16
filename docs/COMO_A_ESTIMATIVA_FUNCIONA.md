@@ -12,14 +12,29 @@ Um GIF é uma sequência de quadros em que cada quadro é uma imagem de no
 máximo 256 cores comprimida com LZW. Além disso, o FFmpeg regrava apenas o
 retângulo que mudou de um quadro para o outro (`diff_mode=rectangle`).
 
-Na prática, o peso segue muito bem esta conta:
+Isso divide os quadros em duas espécies com preços bem diferentes. O
+**primeiro** é uma imagem completa, porque não existe quadro anterior para
+comparar. Os **demais** custam só o retângulo que mudou. Na prática, o peso
+segue muito bem esta conta:
 
 ```
-bytes  ≈  cabeçalho + paleta  +  quadros × largura × altura × k
+bytes  ≈  cabeçalho + paleta
+          +  largura × altura × k_chave
+          +  (quadros − 1) × largura × altura × k_delta
 ```
 
-Tudo aí é conhecido antes de converter — **menos o `k`**, que é quanto cada
-pixel custa em bytes. E o `k` depende de duas coisas bem diferentes:
+> **Por que dois `k` e não um.** Tratar todos os quadros como se custassem o
+> mesmo parece inofensivo, e é — até você medir 1 segundo e prever 40. Numa
+> cena parada o primeiro quadro é praticamente o arquivo inteiro: diluído
+> entre 12 quadros da amostra ele parece caríssimo, e multiplicar isso por
+> 517 quadros produz uma previsão dez vezes maior que o arquivo real. Foi
+> exatamente esse o defeito da primeira versão do modelo, e ele aparecia
+> justamente no tipo de vídeo mais comum de virar GIF: cartão de título,
+> gravação de tela, print animado. Os números estão em
+> [Precisão medida](#precisão-medida).
+
+Tudo aí é conhecido antes de converter — **menos os dois `k`**, que são quanto
+cada pixel custa em bytes. E eles dependem de duas coisas bem diferentes:
 
 | | O que é | Dá para saber antes? |
 |---|---|---|
@@ -32,7 +47,7 @@ todos os controles.
 
 ---
 
-## As duas metades do `k`
+## As duas metades de cada `k`
 
 ```
 k = complexidade_do_vídeo × fator_das_configurações
@@ -62,14 +77,18 @@ bitrate do arquivo original (bitrate alto por pixel = cena mais complexa).
 Cada controle vira um multiplicador. Todos valem 1,0 nas condições de
 referência:
 
-| Controle | Fórmula | Por quê |
-|---|---|---|
-| FPS | `(12 / fps) ^ 0,30` | mais quadros = mais parecidos entre si, então cada um custa menos |
-| Cores | `(cores / 256) ^ 0,45` | menos símbolos distintos comprime melhor |
-| Dither | tabela: 0,72 a 1,55 | pontilhado é ruído, e ruído comprime mal |
-| Paleta | 0,95 a 1,30 | paleta por quadro impede reaproveitar a tabela de cores |
-| Velocidade | `velocidade ^ 0,12` | acelerar aumenta a diferença entre quadros vizinhos |
-| Escala | `(redução / 0,5) ^ 0,12` | encolher também suaviza detalhe e ruído |
+| Controle | Fórmula | Vale para o 1º quadro? | Por quê |
+|---|---|---|---|
+| FPS | `(12 / fps) ^ 0,30` | ❌ | mais quadros = mais parecidos entre si, então cada um custa menos |
+| Cores | `(cores / 256) ^ 0,45` | ✅ | menos símbolos distintos comprime melhor |
+| Dither | tabela: 0,72 a 1,55 | ✅ | pontilhado é ruído, e ruído comprime mal |
+| Paleta | 0,95 a 1,30 | ✅ | paleta por quadro impede reaproveitar a tabela de cores |
+| Velocidade | `velocidade ^ 0,12` | ❌ | acelerar aumenta a diferença entre quadros vizinhos |
+| Escala | `(redução / 0,5) ^ 0,12` | ✅ | encolher também suaviza detalhe e ruído |
+
+FPS e velocidade não entram no primeiro quadro de propósito: ele é uma imagem
+parada, e uma imagem parada não fica mais barata porque o vídeo tem mais
+quadros por segundo.
 
 Os expoentes fracionários são o detalhe que faz o modelo funcionar. **Dobrar
 o FPS não dobra o arquivo** — aumenta cerca de 62%, porque metade dos quadros
@@ -85,16 +104,26 @@ Quando o usuário toca em **Medir**, o app:
 1. escolhe 2 pontos dentro do trecho selecionado (a 20% e a 60%);
 2. converte de verdade uma janela de menos de 1 segundo em cada ponto, com as
    **mesmas** configurações escolhidas;
-3. mede o tamanho real dos arquivos gerados;
-4. **inverte a fórmula** para descobrir a complexidade do vídeo:
+3. converte a mesma janela **uma segunda vez, cortada no primeiro quadro**,
+   reaproveitando a paleta que acabou de gerar (por isso sai quase de graça);
+4. mede o tamanho real dos dois arquivos. A diferença entre eles é, por
+   construção, o que os quadros seguintes custaram;
+5. **inverte a fórmula** para descobrir as duas complexidades do vídeo:
 
    ```
-   complexidade = (bytes_medidos − cabeçalho) / (quadros × largura × altura)
-                  ÷ fator_das_configurações
+   k_chave = (bytes_1_quadro − cabeçalho) / (largura × altura)
+             ÷ fator_das_configurações_do_quadro_parado
+
+   k_delta = (bytes_janela − bytes_1_quadro) / ((quadros − 1) × largura × altura)
+             ÷ fator_das_configurações
    ```
 
-5. combina as duas amostras com peso maior para a mais pesada — errar para
+6. combina as duas amostras com peso maior para a mais pesada — errar para
    cima incomoda menos do que prometer 3 MB e entregar 12 MB.
+
+É a terceira codificação que torna o modelo honesto: sem ela não há como
+separar o quadro caro dos quadros baratos, e o custo do primeiro acaba
+espalhado por todos.
 
 Custa 2 a 5 segundos e derruba a margem de erro anunciada de ±55% para ±15%.
 
@@ -108,6 +137,52 @@ algum expoente da tabela acima merece ajuste.
 
 ---
 
+## Precisão medida
+
+O modelo não é avaliado por opinião. `tool/medir_precisao.py` gera cinco
+vídeos sintéticos que cobrem os extremos de complexidade, converte cada um
+com a mesma cadeia de filtros do app e guarda os tamanhos reais; o teste
+`test/size_estimator_medicoes_test.dart` alimenta o modelo com essas medições
+e compara a previsão com o arquivo que realmente saiu.
+
+Saída de 400×224 px, 12 FPS, 256 cores, dither equilibrado, 43,1 s
+(517 quadros), calibrada com duas amostras de 1 segundo:
+
+| Vídeo | Real | Previsto | Erro | Modelo antigo |
+|---|---|---|---|---|
+| Cartão de título (estático) | 0,04 MB | 0,02 MB | −44% | **+1683%** |
+| Fundo parado, objeto se movendo | 0,42 MB | 0,43 MB | +1% | +56% |
+| Cena agitada | 5,29 MB | 5,32 MB | +1% | +6% |
+| Gradiente em movimento | 17,81 MB | 16,62 MB | −7% | −6% |
+| Ruído (incompressível) | 42,80 MB | 42,98 MB | +0% | +1% |
+
+Três leituras importantes:
+
+- **O modelo antigo não era ruim em tudo.** Ele acertava cenas cheias de
+  movimento, onde o primeiro quadro é um detalhe no meio de centenas. Ele
+  quebrava quanto mais parada fosse a imagem — e cartão de título, gravação
+  de tela e print animado são justamente os vídeos que mais viram GIF.
+- **O cartão de título continua fora dos ±15%, e tudo bem.** O arquivo tem
+  39 KB: errar 17 KB para baixo vira −44% na porcentagem e nada na prática.
+  A régua relativa não diz muita coisa nessa escala, e por isso o teste cobra
+  erro *absoluto* abaixo de 100 KB e erro *relativo* acima.
+- **O gradiente erra os mesmos −7% nos dois modelos**, o que é esperado: o
+  problema dele não é o primeiro quadro, é que gradiente em movimento é o
+  conteúdo que menos se parece com o resto de si mesmo ao longo do tempo. É
+  o próximo lugar onde o modelo tem folga para melhorar.
+
+As medições são reproduzíveis: as fontes têm semente e cores fixas e são
+codificadas com `-threads 1`, porque tanto o filtro `gradients` quanto o x264
+multi-thread variam de uma execução para outra e fariam o teste oscilar.
+
+Para refazer as medições (precisa de `ffmpeg` e `ffprobe` no PATH):
+
+```bash
+python3 tool/medir_precisao.py
+```
+
+Ele imprime a tabela e o bloco de constantes pronto para colar no teste.
+
 ## Os testes
 
 `test/size_estimator_test.dart` cobre:
@@ -117,9 +192,12 @@ algum expoente da tabela acima merece ajuste.
 - **sublinearidade do FPS** — dobrar o FPS aumenta o peso entre 30% e 100%,
   nunca mais que isso;
 - **ida e volta da calibração** — estimar com uma complexidade conhecida e
-  depois recuperá-la a partir do resultado devolve o mesmo número;
+  depois recuperá-la a partir do resultado devolve os mesmos dois números;
 - **independência de configuração** — uma complexidade medida a 12 fps / 480 px
   prevê corretamente um GIF a 20 fps / 320 px (erro < 5%);
+- **independência de duração** — uma cena praticamente parada medida em 1
+  segundo prevê corretamente uma conversão de 40 segundos (erro < 5%). É o
+  teste que trava o defeito do primeiro quadro diluído;
 - **robustez** — medições absurdas caem no valor padrão em vez de quebrar;
 - **ajuste automático** — a busca por um alvo de tamanho sempre termina e
   nunca altera o trecho escolhido pelo usuário.

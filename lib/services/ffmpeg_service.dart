@@ -225,6 +225,7 @@ class FfmpegService {
     required ConversionSettings settings,
     required String palettePath,
     required String outputPath,
+    int? frameLimit,
   }) {
     final filter = buildVideoFilter(settings, video);
 
@@ -244,6 +245,7 @@ class FfmpegService {
       // 0 = repetir para sempre; -1 = tocar uma vez só.
       '-loop', settings.loop ? '0' : '-1',
       '-an',
+      if (frameLimit != null) ...['-frames:v', '$frameLimit'],
       '-f', 'gif',
       outputPath,
     ];
@@ -380,6 +382,12 @@ class FfmpegService {
   /// Como o modelo separa conteúdo (o que medimos) de configuração (o que
   /// calculamos), o valor obtido continua valendo mesmo depois que o usuário
   /// mexer nos controles — não é preciso medir de novo a cada ajuste.
+  ///
+  /// De cada amostra saem DUAS medidas: o GIF da janela inteira e o mesmo GIF
+  /// cortado no primeiro quadro. A diferença entre elas é o que os quadros
+  /// seguintes custaram, e é isso que permite ao modelo não diluir o primeiro
+  /// quadro — caro, porque é uma imagem completa — pelo resto da conversão.
+  /// A segunda codificação reaproveita a paleta já gerada, então custa pouco.
   Future<ComplexityProfile> calibrate({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -416,6 +424,7 @@ class FfmpegService {
       final stamp = '${DateTime.now().millisecondsSinceEpoch}_$i';
       final palettePath = '${dir.path}/amostra_$stamp.png';
       final gifPath = '${dir.path}/amostra_$stamp.gif';
+      final firstFramePath = '${dir.path}/amostra_${stamp}_q1.gif';
 
       try {
         await _run(
@@ -435,12 +444,27 @@ class FfmpegService {
           ),
           step: 'medição',
         );
+        await _run(
+          _paletteUseArgs(
+            video: video,
+            settings: sample,
+            palettePath: palettePath,
+            outputPath: firstFramePath,
+            frameLimit: 1,
+          ),
+          step: 'medição',
+        );
 
         final gif = File(gifPath);
-        if (gif.existsSync() && gif.lengthSync() > 0) {
+        final firstFrame = File(firstFramePath);
+        if (gif.existsSync() &&
+            gif.lengthSync() > 0 &&
+            firstFrame.existsSync() &&
+            firstFrame.lengthSync() > 0) {
           profiles.add(
             SizeEstimator.calibrate(
               measuredBytes: gif.lengthSync(),
+              firstFrameBytes: firstFrame.lengthSync(),
               sampleSettings: sample,
               video: video,
             ),
@@ -453,6 +477,7 @@ class FfmpegService {
         _activeSessionId = null;
         _deleteQuietly(palettePath);
         _deleteQuietly(gifPath);
+        _deleteQuietly(firstFramePath);
         onProgress?.call((i + 1) / positions.length);
       }
     }

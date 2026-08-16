@@ -29,6 +29,33 @@ int _bytes(ConversionSettings settings, {ComplexityProfile? profile}) =>
       profile: profile ?? ComplexityProfile.fallback,
     ).bytes;
 
+ComplexityProfile _profile(double bpp, {double? key}) => ComplexityProfile(
+  bytesPerPixel: bpp,
+  keyBytesPerPixel: key ?? bpp * 1.8,
+  confidence: EstimateConfidence.calibrated,
+);
+
+/// O par de medidas que uma amostra real produziria com este perfil:
+/// o GIF da janela inteira e o mesmo GIF cortado no primeiro quadro.
+(int, int) _sampleBytes(
+  ConversionSettings settings, {
+  required ComplexityProfile profile,
+}) {
+  final (w, h) = settings.outputDimensions(_video);
+  final pixels = w * h;
+  final overhead = SizeEstimator.overheadBytes(settings.colors);
+  final key =
+      pixels *
+      profile.keyBytesPerPixel *
+      SizeEstimator.keySettingsFactor(settings, _video);
+  final delta =
+      (settings.frameCount - 1) *
+      pixels *
+      profile.bytesPerPixel *
+      SizeEstimator.settingsFactor(settings, _video);
+  return ((overhead + key + delta).round(), (overhead + key).round());
+}
+
 void main() {
   group('dimensões de saída', () {
     test('nunca amplia o vídeo além da origem', () {
@@ -155,17 +182,22 @@ void main() {
 
   group('calibração', () {
     test('volta ao perfil original (ida e volta)', () {
-      const profile = ComplexityProfile(0.21, EstimateConfidence.calibrated);
+      final profile = _profile(0.21, key: 0.40);
       final sample = _base.copyWith(startSeconds: 3, endSeconds: 4);
 
-      final measured = _bytes(sample, profile: profile);
+      final (measured, firstFrame) = _sampleBytes(sample, profile: profile);
       final recovered = SizeEstimator.calibrate(
         measuredBytes: measured,
+        firstFrameBytes: firstFrame,
         sampleSettings: sample,
         video: _video,
       );
 
       expect(recovered.bytesPerPixel, closeTo(profile.bytesPerPixel, 0.005));
+      expect(
+        recovered.keyBytesPerPixel,
+        closeTo(profile.keyBytesPerPixel, 0.005),
+      );
       expect(recovered.confidence, EstimateConfidence.calibrated);
     });
 
@@ -173,12 +205,13 @@ void main() {
       // Calibramos com uma amostra a 12 fps / 480 px e usamos o resultado
       // para prever um GIF a 20 fps / 320 px. O perfil é independente das
       // configurações, então a previsão tem que bater.
-      const truth = ComplexityProfile(0.19, EstimateConfidence.calibrated);
+      final truth = _profile(0.19, key: 0.36);
       final sample = _base.copyWith(startSeconds: 3, endSeconds: 4);
-      final measured = _bytes(sample, profile: truth);
+      final (measured, firstFrame) = _sampleBytes(sample, profile: truth);
 
       final recovered = SizeEstimator.calibrate(
         measuredBytes: measured,
+        firstFrameBytes: firstFrame,
         sampleSettings: sample,
         video: _video,
       );
@@ -190,10 +223,32 @@ void main() {
       expect((predicted - actual).abs() / actual, lessThan(0.05));
     });
 
+    test('uma amostra curta não infla a previsão de um GIF longo', () {
+      // O caso que motivou separar o primeiro quadro: cena praticamente
+      // parada, em que o quadro inicial é quase o arquivo inteiro. Medindo
+      // 1 segundo e prevendo 40, a conta não pode multiplicar esse custo.
+      final parada = _profile(0.004, key: 0.35);
+      final amostra = _base.copyWith(startSeconds: 3, endSeconds: 4);
+      final longo = _base.copyWith(startSeconds: 0, endSeconds: 40);
+
+      final (measured, firstFrame) = _sampleBytes(amostra, profile: parada);
+      final recovered = SizeEstimator.calibrate(
+        measuredBytes: measured,
+        firstFrameBytes: firstFrame,
+        sampleSettings: amostra,
+        video: _video,
+      );
+
+      final previsto = _bytes(longo, profile: recovered);
+      final real = _bytes(longo, profile: parada);
+      expect((previsto - real).abs() / real, lessThan(0.05));
+    });
+
     test('medida absurda não quebra o modelo', () {
       final sample = _base.copyWith(startSeconds: 3, endSeconds: 4);
       final tooSmall = SizeEstimator.calibrate(
         measuredBytes: 10,
+        firstFrameBytes: 5,
         sampleSettings: sample,
         video: _video,
       );
@@ -201,19 +256,33 @@ void main() {
 
       final tooBig = SizeEstimator.calibrate(
         measuredBytes: 900000000,
+        firstFrameBytes: 400000000,
         sampleSettings: sample,
         video: _video,
       );
       expect(tooBig.bytesPerPixel, lessThanOrEqualTo(1.30));
+      expect(tooBig.keyBytesPerPixel, lessThanOrEqualTo(2.00));
+
+      // O GIF da janela inteira nunca pode ser menor que o do primeiro
+      // quadro; se vier assim, a medição não serve.
+      final invertido = SizeEstimator.calibrate(
+        measuredBytes: 5000,
+        firstFrameBytes: 9000,
+        sampleSettings: sample,
+        video: _video,
+      );
+      expect(invertido.bytesPerPixel, ComplexityProfile.fallback.bytesPerPixel);
     });
 
     test('combinar amostras puxa para a mais pesada', () {
-      final combined = SizeEstimator.combineSamples(const [
-        ComplexityProfile(0.10, EstimateConfidence.calibrated),
-        ComplexityProfile(0.30, EstimateConfidence.calibrated),
+      final combined = SizeEstimator.combineSamples([
+        _profile(0.10, key: 0.20),
+        _profile(0.30, key: 0.60),
       ]);
       expect(combined.bytesPerPixel, greaterThan(0.20));
       expect(combined.bytesPerPixel, lessThan(0.30));
+      expect(combined.keyBytesPerPixel, greaterThan(0.40));
+      expect(combined.keyBytesPerPixel, lessThan(0.60));
     });
   });
 
@@ -275,7 +344,7 @@ void main() {
       final calibrated = SizeEstimator.estimate(
         settings: _base,
         video: _video,
-        profile: const ComplexityProfile(0.16, EstimateConfidence.calibrated),
+        profile: _profile(0.16),
       );
 
       final roughSpread = rough.highBytes - rough.lowBytes;

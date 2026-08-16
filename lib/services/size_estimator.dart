@@ -10,18 +10,33 @@ import '../models/video_info.dart';
 /// (fps, cores, dither, escala, velocidade) é conhecido antes de converter.
 /// Por isso vale a pena medir isso UMA vez, com uma amostra curta, e reusar o
 /// valor enquanto o usuário mexe nos controles.
+///
+/// São dois números, e não um, porque num GIF o primeiro quadro não custa o
+/// mesmo que os outros — ver [SizeEstimator].
 class ComplexityProfile {
-  const ComplexityProfile(this.bytesPerPixel, this.confidence);
+  const ComplexityProfile({
+    required this.bytesPerPixel,
+    required this.keyBytesPerPixel,
+    required this.confidence,
+  });
 
-  /// Bytes por pixel por quadro nas condições de referência
-  /// (ver [SizeEstimator]).
+  /// Bytes por pixel de cada quadro **depois do primeiro**, nas condições de
+  /// referência (ver [SizeEstimator]). É só o retângulo que mudou.
   final double bytesPerPixel;
+
+  /// Bytes por pixel do **primeiro** quadro, que é sempre uma imagem
+  /// completa. Costuma ser muito mais caro que os seguintes.
+  final double keyBytesPerPixel;
 
   final EstimateConfidence confidence;
 
-  /// Valor médio observado em vídeos comuns de celular. Serve de ponto de
-  /// partida enquanto nenhuma medição foi feita.
-  static const fallback = ComplexityProfile(0.16, EstimateConfidence.rough);
+  /// Valores médios observados em vídeos comuns de celular. Servem de ponto
+  /// de partida enquanto nenhuma medição foi feita.
+  static const fallback = ComplexityProfile(
+    bytesPerPixel: 0.16,
+    keyBytesPerPixel: 0.25,
+    confidence: EstimateConfidence.rough,
+  );
 }
 
 /// Estima o peso do GIF *antes* de converter.
@@ -30,21 +45,34 @@ class ComplexityProfile {
 ///
 /// Um GIF é uma sequência de quadros paletizados comprimidos com LZW, e o
 /// FFmpeg ainda regrava só o retângulo que mudou de um quadro para o outro
-/// (`diff_mode=rectangle`). Na prática o peso segue muito bem:
+/// (`diff_mode=rectangle`).
 ///
-///     bytes ≈ cabeçalho + paleta + quadros × largura × altura × k
+/// Isso divide os quadros em duas espécies com preços bem diferentes:
 ///
-/// onde `k` (bytes por pixel por quadro) depende de duas coisas: o quanto a
-/// cena é "agitada"/detalhada, e as configurações de codificação. Separamos
-/// as duas: a agitação vira o [ComplexityProfile], medido uma vez; as
-/// configurações viram fatores multiplicativos calculados na hora.
+///  - o **primeiro** é uma imagem completa, porque não há quadro anterior
+///    para comparar;
+///  - os **demais** custam só a área que mudou.
+///
+///     bytes ≈ cabeçalho + paleta
+///             + largura × altura × kChave
+///             + (quadros − 1) × largura × altura × kDelta
+///
+/// Tratar os dois como se custassem o mesmo é o erro que faz uma estimativa
+/// calibrada numa amostra de 12 quadros explodir numa conversão de 500: numa
+/// cena parada o primeiro quadro é praticamente o arquivo inteiro, e ele é
+/// diluído em 12 na amostra e em 500 no resultado. Num cartão de título
+/// estático isso chega a errar por 8x.
+///
+/// `kChave` e `kDelta` dependem do quanto a cena é detalhada/agitada; as
+/// configurações de codificação viram fatores multiplicativos calculados na
+/// hora. A agitação vira o [ComplexityProfile], medido uma vez.
 ///
 /// ## Condições de referência
 ///
 /// Os fatores são todos 1.0 quando: 12 fps, 256 cores, dither equilibrado,
 /// paleta única, velocidade 1x e imagem reduzida à metade da largura de
-/// origem. `k` é sempre expresso nessas condições, para que o mesmo valor
-/// medido sirva para qualquer combinação de controles.
+/// origem. Os dois `k` são sempre expressos nessas condições, para que o
+/// mesmo valor medido sirva para qualquer combinação de controles.
 class SizeEstimator {
   const SizeEstimator._();
 
@@ -52,9 +80,21 @@ class SizeEstimator {
   static const int _refColors = 256;
   static const double _refScaleRatio = 0.5;
 
-  /// Limites de sanidade: nenhum GIF real fica fora dessa faixa.
-  static const double _minBpp = 0.015;
+  /// Limites de sanidade para o custo dos quadros que vêm depois do primeiro.
+  ///
+  /// O piso é bem baixo de propósito. Um quadro que quase não muda custa só o
+  /// cabeçalho do bloco mais um punhado de bytes de LZW — uns 30 bytes, que
+  /// num quadro de 400×224 dão 0,0003 por pixel. O valor antigo (0,015) fazia
+  /// sentido quando um `k` só carregava o primeiro quadro diluído entre
+  /// todos; agora que os dois estão separados, um piso alto reintroduz
+  /// exatamente o erro que a separação corrige, inflando cenas paradas.
+  static const double _minBpp = 0.0002;
   static const double _maxBpp = 1.30;
+
+  /// O primeiro quadro é uma imagem inteira, então custa bem mais por pixel
+  /// que os seguintes — a faixa plausível é outra.
+  static const double _minKeyBpp = 0.010;
+  static const double _maxKeyBpp = 2.00;
 
   /// Cabeçalho do GIF, bloco de aplicação (loop) e tabela de cores.
   static int overheadBytes(int colors) => 800 + 3 * colors;
@@ -102,13 +142,30 @@ class SizeEstimator {
   static double scaleFactor(double scaleRatio) =>
       math.pow(scaleRatio.clamp(0.05, 1.0) / _refScaleRatio, 0.12).toDouble();
 
-  /// Produto de todos os fatores de configuração.
+  /// Produto de todos os fatores de configuração, para os quadros que vêm
+  /// depois do primeiro.
   static double settingsFactor(ConversionSettings settings, VideoInfo video) {
     return fpsFactor(settings.fps) *
         colorFactor(settings.colors) *
         ditherFactor(settings.dither) *
         paletteFactor(settings.palette) *
         speedFactor(settings.speed) *
+        scaleFactor(settings.scaleRatio(video));
+  }
+
+  /// Fatores que valem para o **primeiro** quadro.
+  ///
+  /// Fps e velocidade ficam de fora de propósito: o primeiro quadro é uma
+  /// imagem parada, e uma imagem parada não fica mais barata porque o vídeo
+  /// tem mais quadros por segundo. Só cor, dither, paleta e escala mexem
+  /// nela.
+  static double keySettingsFactor(
+    ConversionSettings settings,
+    VideoInfo video,
+  ) {
+    return colorFactor(settings.colors) *
+        ditherFactor(settings.dither) *
+        paletteFactor(settings.palette) *
         scaleFactor(settings.scaleRatio(video));
   }
 
@@ -123,12 +180,17 @@ class SizeEstimator {
   }) {
     final (width, height) = settings.outputDimensions(video);
     final frames = settings.frameCount;
+    final pixels = width * height;
 
     final bpp = (profile.bytesPerPixel * settingsFactor(settings, video))
         .clamp(_minBpp, _maxBpp)
         .toDouble();
+    final keyBpp =
+        (profile.keyBytesPerPixel * keySettingsFactor(settings, video))
+            .clamp(_minKeyBpp, _maxKeyBpp)
+            .toDouble();
 
-    final payload = frames * width * height * bpp;
+    final payload = pixels * keyBpp + (frames - 1) * pixels * bpp;
     final total = overheadBytes(settings.colors) + payload;
 
     return SizeEstimate(
@@ -146,30 +208,50 @@ class SizeEstimator {
   // Calibração
   // --------------------------------------------------------------------
 
-  /// Caminho inverso da estimativa: dado o tamanho REAL de uma amostra já
-  /// codificada, descobre o `k` deste vídeo.
+  /// Caminho inverso da estimativa: dados os tamanhos REAIS de uma amostra já
+  /// codificada, descobre os dois `k` deste vídeo.
+  ///
+  /// Precisa de duas medidas da MESMA janela, feitas com a MESMA paleta:
+  ///
+  ///  - [firstFrameBytes] — o GIF cortado no primeiro quadro. Como o primeiro
+  ///    quadro é sempre completo, esse arquivo é o cabeçalho + a paleta + o
+  ///    custo do quadro cheio;
+  ///  - [measuredBytes] — o GIF da janela inteira. A diferença entre os dois
+  ///    é exatamente o que os quadros seguintes custaram.
+  ///
+  /// Sem essa segunda medida não dá para separar as duas coisas, e o custo do
+  /// primeiro quadro acaba distribuído entre todos — que é o que fazia a
+  /// previsão estourar em cenas paradas.
   ///
   /// [sampleSettings] tem que ser exatamente o que foi usado para gerar a
   /// amostra (mesmo fps, cores, dither, escala), variando só o trecho.
   static ComplexityProfile calibrate({
     required int measuredBytes,
+    required int firstFrameBytes,
     required ConversionSettings sampleSettings,
     required VideoInfo video,
   }) {
     final (width, height) = sampleSettings.outputDimensions(video);
     final frames = sampleSettings.frameCount;
-    final pixels = frames * width * height;
-    if (pixels <= 0) return ComplexityProfile.fallback;
+    final pixels = width * height;
+    if (pixels <= 0 || frames < 2) return ComplexityProfile.fallback;
 
-    final payload = measuredBytes - overheadBytes(sampleSettings.colors);
-    if (payload <= 0) return ComplexityProfile.fallback;
+    final overhead = overheadBytes(sampleSettings.colors);
+    final keyPayload = firstFrameBytes - overhead;
+    final deltaPayload = measuredBytes - firstFrameBytes;
+    if (keyPayload <= 0 || deltaPayload < 0) return ComplexityProfile.fallback;
 
-    final observedBpp = payload / pixels;
-    final normalized = observedBpp / settingsFactor(sampleSettings, video);
+    final keyBpp =
+        keyPayload / pixels / keySettingsFactor(sampleSettings, video);
+    final deltaBpp =
+        deltaPayload /
+        ((frames - 1) * pixels) /
+        settingsFactor(sampleSettings, video);
 
     return ComplexityProfile(
-      normalized.clamp(_minBpp, _maxBpp).toDouble(),
-      EstimateConfidence.calibrated,
+      bytesPerPixel: deltaBpp.clamp(_minBpp, _maxBpp).toDouble(),
+      keyBytesPerPixel: keyBpp.clamp(_minKeyBpp, _maxKeyBpp).toDouble(),
+      confidence: EstimateConfidence.calibrated,
     );
   }
 
@@ -179,13 +261,21 @@ class SizeEstimator {
     if (samples.isEmpty) return ComplexityProfile.fallback;
     if (samples.length == 1) return samples.first;
 
-    final values = samples.map((s) => s.bytesPerPixel).toList()..sort();
-    final mean = values.reduce((a, b) => a + b) / values.length;
-    final max = values.last;
+    double mix(double Function(ComplexityProfile) pick) {
+      final values = samples.map(pick).toList();
+      final mean = values.reduce((a, b) => a + b) / values.length;
+      final max = values.reduce(math.max);
+      return 0.55 * mean + 0.45 * max;
+    }
 
     return ComplexityProfile(
-      (0.55 * mean + 0.45 * max).clamp(_minBpp, _maxBpp).toDouble(),
-      EstimateConfidence.calibrated,
+      bytesPerPixel: mix(
+        (s) => s.bytesPerPixel,
+      ).clamp(_minBpp, _maxBpp).toDouble(),
+      keyBytesPerPixel: mix(
+        (s) => s.keyBytesPerPixel,
+      ).clamp(_minKeyBpp, _maxKeyBpp).toDouble(),
+      confidence: EstimateConfidence.calibrated,
     );
   }
 
@@ -201,9 +291,16 @@ class SizeEstimator {
     final t = ((bpp - 0.08) / 0.55).clamp(0.0, 1.0).toDouble();
     final estimated = 0.085 + t * 0.24;
 
+    // O primeiro quadro é uma imagem inteira: mesmo num vídeo parado ele
+    // custa caro, e num detalhado custa mais ainda. A faixa é bem mais alta
+    // que a dos quadros seguintes, e importa pouco em GIFs longos — ele é um
+    // quadro entre centenas.
+    final key = 0.12 + t * 0.33;
+
     return ComplexityProfile(
-      estimated.clamp(_minBpp, _maxBpp).toDouble(),
-      EstimateConfidence.fromSource,
+      bytesPerPixel: estimated.clamp(_minBpp, _maxBpp).toDouble(),
+      keyBytesPerPixel: key.clamp(_minKeyBpp, _maxKeyBpp).toDouble(),
+      confidence: EstimateConfidence.fromSource,
     );
   }
 
