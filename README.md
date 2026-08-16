@@ -98,6 +98,10 @@ flutter test
 flutter run
 ```
 
+O CI fixa a versão do Flutter em **3.47.0** (`FLUTTER_VERSION` em
+`.github/workflows/ci.yml`). Se o `dart format` reclamar aqui e passar na sua
+máquina, é quase sempre diferença de versão — rode na mesma.
+
 ## Estrutura
 
 ```
@@ -127,7 +131,13 @@ test/
 ├── size_estimator_medicoes_test.dart  # 7 testes contra medições reais
 └── size_panel_test.dart            # 10 testes do painel de peso
 
-docs/                               # estimativa, licenças e privacidade
+docs/
+├── COMO_A_ESTIMATIVA_FUNCIONA.md   # o modelo de peso por dentro
+├── LICENCAS.md                     # obrigações da LGPL do FFmpeg
+├── POLITICA_DE_PRIVACIDADE.md      # modelo exigido pela Play Console
+└── PUBLICAR_NA_PLAY_STORE.md       # guia de publicação, do zero ao ar
+
+loja/                               # ficha e artes prontas para a Play Store
 
 tool/
 ├── gerar_icones.py                 # gera o ícone do app e o adaptativo
@@ -174,12 +184,16 @@ em qualquer aparelho.
 Para gerar uma versão nova:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.2
+git push origin v1.1.2
 ```
 
 O workflow `.github/workflows/release.yml` compila, nomeia e publica os
 arquivos sozinho (também dá para dispará-lo pela aba Actions).
+
+A tag deve bater com o `version` do `pubspec.yaml` (hoje `1.1.2+2`). O número
+depois do `+` é o `versionCode` do Android e **precisa aumentar** a cada envio
+para a Play Store — sem isso o upload é recusado.
 
 ## Stack
 
@@ -190,6 +204,16 @@ arquivos sozinho (também dá para dispará-lo pela aba Actions).
 | Escolha de arquivo | `file_picker` | usa o seletor do sistema, sem exigir permissão de mídia |
 | Prévia | `video_player` | mostra o trecho e a moldura de recorte antes de converter |
 | Saída | `gal` + `share_plus` | salvar na galeria e compartilhar |
+
+## Documentação
+
+| Documento | Para quê |
+|---|---|
+| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) | como o peso é previsto, a calibração e a tabela de erro medido |
+| [`docs/LICENCAS.md`](docs/LICENCAS.md) | o que a LGPL do FFmpeg obriga antes de publicar |
+| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) | passo a passo da publicação, incluindo o teste fechado de 14 dias |
+| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) | modelo de política, obrigatório mesmo sem coleta de dados |
+| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) | textos da ficha já dentro dos limites da Play Console |
 
 ## Licença
 
