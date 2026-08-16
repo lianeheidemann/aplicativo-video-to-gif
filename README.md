@@ -36,7 +36,7 @@ spend time converting it**.
 
 ### Screenshots
 
-<img src="assets/interface.png"/>
+<img src="assets/interface-v2.png"/>
 
 ### GIF
 
