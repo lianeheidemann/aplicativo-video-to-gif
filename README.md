@@ -224,23 +224,19 @@ rejected.
 
 ## Documentation
 
-Each document below is in Portuguese, with an English translation next to
-it under `docs/en/`.
-
 | Document | What it's for |
 |---|---|
-| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) ([EN](docs/en/HOW_THE_ESTIMATE_WORKS.md)) | how the size is predicted, calibration and the measured-error table |
-| [`docs/LICENCAS.md`](docs/LICENCAS.md) ([EN](docs/en/LICENSES.md)) | what FFmpeg's LGPL requires before publishing |
-| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) ([EN](docs/en/PUBLISHING_TO_THE_PLAY_STORE.md)) | step-by-step publishing guide, including the 14-day closed test |
-| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) ([EN](docs/en/PRIVACY_POLICY.md)) | privacy policy template, required even with no data collection |
-| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) ([EN](docs/en/STORE_LISTING.md)) | store listing copy, already within Play Console's limits |
+| [`docs/en/HOW_THE_ESTIMATE_WORKS.md`](docs/en/HOW_THE_ESTIMATE_WORKS.md) | how the size is predicted, calibration and the measured-error table |
+| [`docs/en/LICENSES.md`](docs/en/LICENSES.md) | what FFmpeg's LGPL requires before publishing |
+| [`docs/en/PUBLISHING_TO_THE_PLAY_STORE.md`](docs/en/PUBLISHING_TO_THE_PLAY_STORE.md) | step-by-step publishing guide, including the 14-day closed test |
+| [`docs/en/PRIVACY_POLICY.md`](docs/en/PRIVACY_POLICY.md) | privacy policy template, required even with no data collection |
+| [`docs/en/STORE_LISTING.md`](docs/en/STORE_LISTING.md) | store listing copy, already within Play Console's limits |
 
 ## License
 
 App code: [MIT](LICENSE).
 FFmpeg: LGPL-2.1-or-later — attribution in [`NOTICE`](NOTICE), details and
-obligations in [`docs/LICENCAS.md`](docs/LICENCAS.md)
-([EN](docs/en/LICENSES.md)).
+obligations in [`docs/en/LICENSES.md`](docs/en/LICENSES.md).
 
 ---
 
