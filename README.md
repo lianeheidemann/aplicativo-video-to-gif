@@ -37,7 +37,7 @@ spend time converting it**.
 
 ### GIF
 
-<img width="35%" src="assets/demonstration.gif"/>
+<img width="35%" src="assets/demonstration-v2.gif"/>
 
 ## The problem it solves
 
