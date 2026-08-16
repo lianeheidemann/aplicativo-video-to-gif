@@ -39,7 +39,7 @@ spend time converting it**.
 
 <img src="assets/image/interface-v4.png"/>
 
-<img width="20%" src="assets/gif_celular_proporcao_referencia.gif"/>
+<img width="20%" src="assets/demonstration-v2-com-moldura-celular-transparente.gif"/>
 
 </div>
 
