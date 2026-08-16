@@ -2,7 +2,8 @@
 
 <img width="110" src="assets/icon-v6.png"/>
 
-# Vídeo em GIF
+# Vídeo para GIF
+<img width="210" src="assets/badge_under-construction_lavanda.svg"/><br>
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
 
