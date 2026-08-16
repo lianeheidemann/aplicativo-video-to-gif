@@ -38,7 +38,9 @@ class _EditorPageState extends State<EditorPage> {
   final _ffmpeg = FfmpegService();
 
   late ConversionSettings _settings = widget.initialSettings;
-  late ComplexityProfile _profile = SizeEstimator.profileFromSource(widget.video);
+  late ComplexityProfile _profile = SizeEstimator.profileFromSource(
+    widget.video,
+  );
 
   VideoPlayerController? _player;
   bool _previewFailed = false;
@@ -49,10 +51,10 @@ class _EditorPageState extends State<EditorPage> {
   VideoInfo get _video => widget.video;
 
   SizeEstimate get _estimate => SizeEstimator.estimate(
-        settings: _settings,
-        video: _video,
-        profile: _profile,
-      );
+    settings: _settings,
+    video: _video,
+    profile: _profile,
+  );
 
   @override
   void initState() {
@@ -96,7 +98,10 @@ class _EditorPageState extends State<EditorPage> {
   Future<void> _measure() async {
     setState(() => _measuring = true);
     try {
-      final profile = await _ffmpeg.calibrate(video: _video, settings: _settings);
+      final profile = await _ffmpeg.calibrate(
+        video: _video,
+        settings: _settings,
+      );
       if (!mounted) return;
       setState(() {
         _profile = profile;
@@ -423,25 +428,24 @@ class _EditorPageState extends State<EditorPage> {
     }
 
     final anchorX = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft =>
-        (crop.x + crop.width).toDouble(),
+      _CropHandle.topLeft ||
+      _CropHandle.bottomLeft => (crop.x + crop.width).toDouble(),
       _CropHandle.topRight || _CropHandle.bottomRight => crop.x.toDouble(),
     };
     final anchorY = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.topRight =>
-        (crop.y + crop.height).toDouble(),
+      _CropHandle.topLeft ||
+      _CropHandle.topRight => (crop.y + crop.height).toDouble(),
       _CropHandle.bottomLeft || _CropHandle.bottomRight => crop.y.toDouble(),
     };
 
     final maxWidthByX = switch (handle) {
       _CropHandle.topLeft || _CropHandle.bottomLeft => anchorX,
-      _CropHandle.topRight || _CropHandle.bottomRight =>
-        _video.width - anchorX,
+      _CropHandle.topRight || _CropHandle.bottomRight => _video.width - anchorX,
     };
     final maxHeightByY = switch (handle) {
       _CropHandle.topLeft || _CropHandle.topRight => anchorY,
-      _CropHandle.bottomLeft || _CropHandle.bottomRight =>
-        _video.height - anchorY,
+      _CropHandle.bottomLeft ||
+      _CropHandle.bottomRight => _video.height - anchorY,
     };
 
     final maxWidth = maxWidthByX < maxHeightByY * ratio
@@ -463,8 +467,10 @@ class _EditorPageState extends State<EditorPage> {
     final x = switch (handle) {
       _CropHandle.topLeft || _CropHandle.bottomLeft =>
         (anchorX.round() - evenWidth).clamp(0, _video.width - evenWidth),
-      _CropHandle.topRight || _CropHandle.bottomRight =>
-        anchorX.round().clamp(0, _video.width - evenWidth),
+      _CropHandle.topRight || _CropHandle.bottomRight => anchorX.round().clamp(
+        0,
+        _video.width - evenWidth,
+      ),
     };
     final y = switch (handle) {
       _CropHandle.topLeft || _CropHandle.topRight =>
@@ -480,8 +486,9 @@ class _EditorPageState extends State<EditorPage> {
     return AnimatedBuilder(
       animation: player,
       builder: (context, _) {
-        final duration =
-            _video.durationSeconds <= 0 ? 1.0 : _video.durationSeconds;
+        final duration = _video.durationSeconds <= 0
+            ? 1.0
+            : _video.durationSeconds;
         final current = player.value.position.inMilliseconds / 1000.0;
         final start = (_settings.startSeconds / duration).clamp(0.0, 1.0);
         final end = (_settings.endSeconds / duration).clamp(0.0, 1.0);
@@ -506,8 +513,10 @@ class _EditorPageState extends State<EditorPage> {
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapDown: (details) {
-                      final ratio =
-                          (details.localPosition.dx / width).clamp(0.0, 1.0);
+                      final ratio = (details.localPosition.dx / width).clamp(
+                        0.0,
+                        1.0,
+                      );
                       _seekPreview(ratio * duration);
                     },
                     child: SizedBox(
@@ -688,10 +697,9 @@ class _EditorPageState extends State<EditorPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.08),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -755,8 +763,9 @@ class _EditorPageState extends State<EditorPage> {
 
   CropRect _defaultCustomCrop() {
     final width = _even(((_video.width * 0.8).round()).clamp(2, _video.width));
-    final height =
-        _even(((_video.height * 0.8).round()).clamp(2, _video.height));
+    final height = _even(
+      ((_video.height * 0.8).round()).clamp(2, _video.height),
+    );
     return _cropAroundCenter(width, height);
   }
 
@@ -809,16 +818,16 @@ class _EditorPageState extends State<EditorPage> {
       children: [
         Text(
           'Posição da janela',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         Text(
           'As barras abaixo movem a janela; o tamanho é alterado somente pelas bolinhas de canto na prévia.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         if (horizontalRoom > 0) ...[
@@ -851,8 +860,8 @@ class _EditorPageState extends State<EditorPage> {
           Text(
             'A janela ocupa todo o vídeo.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
       ],
     );
@@ -932,7 +941,8 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.photo_size_select_large_rounded,
       title: 'Resolução',
       value: '$width×$height',
-      hint: 'Reduzir a largura diminui significativamente o tamanho do arquivo.',
+      hint:
+          'Reduzir a largura diminui significativamente o tamanho do arquivo.',
       tip: '480 px oferece boa qualidade para a maioria dos casos.',
       child: OptionChips<int>(
         options: available,
@@ -964,14 +974,14 @@ class _EditorPageState extends State<EditorPage> {
     final colors = <int>{
       ...ConversionSettings.primaryColorOptions,
       _settings.colors,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
 
     return LabeledSection(
       icon: Icons.palette_outlined,
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores · ${_settings.dither.label}',
-      hint: 'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
+      hint:
+          'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
       tip:
           '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
@@ -1043,12 +1053,12 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Widget _subLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  );
 
   void _showHelp() {
     showModalBottomSheet<void>(
@@ -1081,7 +1091,7 @@ class _CropOverlay extends StatelessWidget {
   final VideoInfo video;
   final CropRect? crop;
   final void Function(_CropHandle handle, Offset delta, Size previewSize)
-      onResize;
+  onResize;
 
   @override
   Widget build(BuildContext context) {
@@ -1208,21 +1218,21 @@ class _HelpSheet extends StatelessWidget {
     final theme = Theme.of(context);
 
     Widget item(String title, String body) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(body, style: theme.textTheme.bodyMedium),
-            ],
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        );
+          const SizedBox(height: 4),
+          Text(body, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+    );
 
     return SafeArea(
       child: SingleChildScrollView(

@@ -22,8 +22,9 @@ ThemeData buildTheme(Brightness brightness) {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor:
-        brightness == Brightness.dark ? _darkBackground : scheme.surface,
+    scaffoldBackgroundColor: brightness == Brightness.dark
+        ? _darkBackground
+        : scheme.surface,
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
@@ -44,7 +45,9 @@ ThemeData buildTheme(Brightness brightness) {
     cardTheme: CardThemeData(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: brightness == Brightness.dark ? _darkCard : scheme.surfaceContainerLow,
+      color: brightness == Brightness.dark
+          ? _darkCard
+          : scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
     ),
     chipTheme: ChipThemeData(

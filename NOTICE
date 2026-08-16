@@ -1,0 +1,15 @@
+Vídeo em GIF
+Copyright (c) 2026 Liane Ferreira Heidemann
+
+O código deste aplicativo é distribuído sob a licença MIT (veja LICENSE).
+
+Este produto inclui software desenvolvido por terceiros:
+
+  FFmpeg — LGPL-2.1-or-later
+  https://ffmpeg.org — código-fonte: https://github.com/FFmpeg/FFmpeg
+  Distribuído como biblioteca dinâmica, sem modificações, através do pacote
+  ffmpeg_kit_flutter_new_min (variante LGPL, sem componentes GPL).
+
+As obrigações da LGPL e as licenças das demais dependências estão detalhadas
+em docs/LICENCAS.md. O aviso também aparece dentro do aplicativo, em
+Sobre → Ver licenças.

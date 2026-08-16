@@ -1,17 +1,22 @@
 <div align="center">
 
-<img width="110" src="assets/icon-v1.png"/>
+<img width="110" src="assets/icon.png"/>
 
 # Vídeo em GIF
-<img width="210" src="assets/badge_under-construction_lavanda.svg"/><br>
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
+
+[![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
+[![Versão](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=vers%C3%A3o&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
+[![Testes](https://img.shields.io/badge/testes-47-b79cf2?style=flat-square&labelColor=372b4d)](test)
+[![Licença](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=licen%C3%A7a&labelColor=372b4d&color=d68fe0)](LICENSE)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
 ![Dart](https://img.shields.io/badge/Dart-3.12%2B-7c53c9?style=flat-square&logo=dart&logoColor=white&labelColor=372b4d)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-LGPL-b79cf2?style=flat-square&logo=ffmpeg&logoColor=white&labelColor=372b4d)
 
+<br>
 </div>
 
 Aplicativo Android que converte vídeos comuns (MP4, MOV, AVI, MKV, WEBM, 3GP)
@@ -19,6 +24,12 @@ em GIF, com controle de corte, proporção, velocidade, resolução e quadros po
 segundo — e, principalmente, **mostrando quanto o arquivo vai pesar antes de
 gastar tempo convertendo**.
 <br>
+
+> Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
+> internet.
+>
+> **[⬇ Baixar o APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
+> — instala direto no Android, sem loja.
 
 ## Interface
 
@@ -29,9 +40,6 @@ gastar tempo convertendo**.
 #### GIF
 
 <img width="35%" src="assets/demonstration.gif"/>
-
-
----
 
 ## O problema que ele resolve
 
@@ -47,7 +55,10 @@ Este app inverte isso:
    bitrate do arquivo, e a faixa exibida é larga de propósito (±40% a ±55%).
 2. **Botão "Medir"**, que converte dois trechos de até um segundo com as
    mesmas configurações escolhidas e usa o tamanho real deles para calibrar o
-   cálculo — a partir daí a faixa exibida passa a ser de ±15%.
+   cálculo — a partir daí a faixa exibida passa a ser de ±15%. O modelo separa
+   o custo do primeiro quadro (uma imagem completa) do custo dos seguintes (só
+   o retângulo que mudou), que é o que permite medir 1 segundo e prever 40 sem
+   inflar o número numa cena parada.
 3. **Semáforo de destinos**: mostra se o GIF cabe no WhatsApp, no X/Twitter e
    no Discord. Se não couber, um toque ajusta as configurações para caber.
 
@@ -113,13 +124,15 @@ lib/
         └── size_panel.dart         # painel de peso e compatibilidade
 
 test/
-├── size_estimator_test.dart        # 29 testes do modelo de estimativa
-└── size_panel_test.dart            # 9 testes do painel de peso
+├── size_estimator_test.dart        # 30 testes do modelo de estimativa
+├── size_estimator_medicoes_test.dart  # 7 testes contra medições reais
+└── size_panel_test.dart            # 10 testes do painel de peso
 
 docs/                               # estimativa, licenças e privacidade
 
 tool/
-└── gerar_icones.py                 # gera o ícone do app e o adaptativo
+├── gerar_icones.py                 # gera o ícone do app e o adaptativo
+└── medir_precisao.py               # mede o erro real do modelo com FFmpeg
 
 .github/workflows/
 ├── ci.yml                          # formatação, análise, testes e APK debug
@@ -131,9 +144,20 @@ FFmpeg — por isso dá para testá-lo inteiro sem emulador.
 
 ## Qualidade
 
-São **38 testes automatizados**: 29 cobrindo o modelo de estimativa
+São **47 testes automatizados**: 30 cobrindo o modelo de estimativa
 (dimensões de saída, contagem de quadros, monotonicidade, calibração, ajuste
-automático para um alvo e classificação) e 9 cobrindo o painel de peso.
+automático para um alvo e classificação), 10 cobrindo o painel de peso e 7
+comparando a previsão com **arquivos que o FFmpeg realmente gerou**.
+
+Esses últimos merecem destaque: `tool/medir_precisao.py` produz cinco vídeos
+sintéticos que vão do cartão de título estático ao ruído incompressível,
+converte cada um e guarda os tamanhos; o teste alimenta o modelo com essas
+medições e cobra o erro. Depois de calibrar, a previsão fica em **±1% em três
+dos cinco casos e em −7% no quarto**. O quinto é um GIF de 39 KB, escala em
+que errar 17 KB já vira −44% — nele o teste cobra erro absoluto, não relativo.
+A tabela completa, com os dois casos que ainda erram e o porquê de cada um,
+está em
+[`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md).
 
 O workflow em `.github/workflows/ci.yml` roda, a cada push, `dart format`,
 `flutter analyze`, `flutter test` e um build do APK de debug — esse último
@@ -170,8 +194,9 @@ arquivos sozinho (também dá para dispará-lo pela aba Actions).
 
 ## Licença
 
-Código do aplicativo: MIT.
-FFmpeg: LGPL-2.1-or-later — veja [`docs/LICENCAS.md`](docs/LICENCAS.md).
+Código do aplicativo: [MIT](LICENSE).
+FFmpeg: LGPL-2.1-or-later — atribuição em [`NOTICE`](NOTICE), detalhes e
+obrigações em [`docs/LICENCAS.md`](docs/LICENCAS.md).
 
 ---
 
