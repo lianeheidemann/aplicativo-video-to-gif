@@ -4,6 +4,8 @@
 
 # Video to GIF
 
+<img src="assets/badge/beta-version-animated-rounded.svg"/>
+
 **Video-to-GIF converter built in Flutter, with file-size estimation before conversion**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
@@ -11,8 +13,6 @@
 ![Dart](https://img.shields.io/badge/Dart-3.12%2B-7c53c9?style=flat-square&logo=dart&logoColor=white&labelColor=372b4d)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-LGPL-b79cf2?style=flat-square&logo=ffmpeg&logoColor=white&labelColor=372b4d)
-
-<img src="assets/badge/beta-version-animated-rounded.svg"/>
 
 </div>
 
