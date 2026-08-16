@@ -66,7 +66,7 @@ This app flips that around:
    adjusts the settings so it does.
 
 How this works under the hood is documented in
-[`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md).
+[`docs/en/HOW_THE_ESTIMATE_WORKS.md`](docs/en/HOW_THE_ESTIMATE_WORKS.md).
 
 ## Features
 
@@ -141,7 +141,8 @@ docs/
 ├── COMO_A_ESTIMATIVA_FUNCIONA.md   # the size model under the hood
 ├── LICENCAS.md                     # obligations of FFmpeg's LGPL
 ├── POLITICA_DE_PRIVACIDADE.md      # template required by Play Console
-└── PUBLICAR_NA_PLAY_STORE.md       # publishing guide, start to finish
+├── PUBLICAR_NA_PLAY_STORE.md       # publishing guide, start to finish
+└── en/                              # English translations of the four docs above
 
 loja/                               # store listing copy and artwork, ready for the Play Store
 
@@ -173,7 +174,7 @@ the fourth**. The fifth is a 39 KB GIF, a scale where missing by 17 KB
 already means −44% — for that one the test checks absolute error, not
 relative. The full table, including the two cases that still miss and why,
 is in
-[`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md).
+[`docs/en/HOW_THE_ESTIMATE_WORKS.md`](docs/en/HOW_THE_ESTIMATE_WORKS.md).
 
 The workflow in `.github/workflows/ci.yml` runs, on every push, `dart
 format`, `flutter analyze`, `flutter test` and a debug APK build — the
@@ -216,19 +217,23 @@ rejected.
 
 ## Documentation
 
+Each document below is in Portuguese, with an English translation next to
+it under `docs/en/`.
+
 | Document | What it's for |
 |---|---|
-| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) | how the size is predicted, calibration and the measured-error table |
-| [`docs/LICENCAS.md`](docs/LICENCAS.md) | what FFmpeg's LGPL requires before publishing |
-| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) | step-by-step publishing guide, including the 14-day closed test |
-| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) | privacy policy template, required even with no data collection |
-| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) | store listing copy, already within Play Console's limits |
+| [`docs/COMO_A_ESTIMATIVA_FUNCIONA.md`](docs/COMO_A_ESTIMATIVA_FUNCIONA.md) ([EN](docs/en/HOW_THE_ESTIMATE_WORKS.md)) | how the size is predicted, calibration and the measured-error table |
+| [`docs/LICENCAS.md`](docs/LICENCAS.md) ([EN](docs/en/LICENSES.md)) | what FFmpeg's LGPL requires before publishing |
+| [`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md) ([EN](docs/en/PUBLISHING_TO_THE_PLAY_STORE.md)) | step-by-step publishing guide, including the 14-day closed test |
+| [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) ([EN](docs/en/PRIVACY_POLICY.md)) | privacy policy template, required even with no data collection |
+| [`loja/FICHA_DA_LOJA.md`](loja/FICHA_DA_LOJA.md) ([EN](docs/en/STORE_LISTING.md)) | store listing copy, already within Play Console's limits |
 
 ## License
 
 App code: [MIT](LICENSE).
 FFmpeg: LGPL-2.1-or-later — attribution in [`NOTICE`](NOTICE), details and
-obligations in [`docs/LICENCAS.md`](docs/LICENCAS.md).
+obligations in [`docs/LICENCAS.md`](docs/LICENCAS.md)
+([EN](docs/en/LICENSES.md)).
 
 ---
 
