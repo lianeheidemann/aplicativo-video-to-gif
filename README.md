@@ -19,6 +19,8 @@
 
 </div>
 
+## About
+
 Android app that converts common video formats (MP4, MOV, AVI, MKV, WEBM,
 3GP) to GIF, with control over trimming, aspect ratio, speed, resolution and
 frame rate — and, above all, **showing how big the file will be before you
@@ -142,7 +144,12 @@ docs/
 ├── LICENCAS.md                     # obligations of FFmpeg's LGPL
 ├── POLITICA_DE_PRIVACIDADE.md      # template required by Play Console
 ├── PUBLICAR_NA_PLAY_STORE.md       # publishing guide, start to finish
-└── en/                              # English translations of the four docs above
+└── en/                              # English translations
+    ├── HOW_THE_ESTIMATE_WORKS.md
+    ├── LICENSES.md
+    ├── PRIVACY_POLICY.md
+    ├── PUBLISHING_TO_THE_PLAY_STORE.md
+    └── STORE_LISTING.md            # translated from loja/FICHA_DA_LOJA.md
 
 loja/                               # store listing copy and artwork, ready for the Play Store
 
