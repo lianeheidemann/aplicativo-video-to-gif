@@ -2,7 +2,7 @@
 
 <img width="110" src="assets/icon-v1.png"/>
 
-# Vídeo para GIF
+# Vídeo em GIF
 <img width="210" src="assets/badge_under-construction_lavanda.svg"/><br>
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
@@ -37,11 +37,12 @@ ajustar e converter de novo — vários minutos por tentativa.
 Este app inverte isso:
 
 1. **Estimativa instantânea** enquanto você mexe nos controles, sem converter
-   nada.
-2. **Botão "Medir"**, que converte trechos de menos de um segundo e usa o
-   resultado real para calibrar o número — depois disso a previsão fica
-   dentro de ±15%.
-3. **Semáforo de destinos**: mostra se o GIF cabe no WhatsApp, no X/Twitter,
+   nada. Antes de qualquer medição o número sai de um palpite baseado no
+   bitrate do arquivo, e a faixa exibida é larga de propósito (±40% a ±55%).
+2. **Botão "Medir"**, que converte dois trechos de até um segundo com as
+   mesmas configurações escolhidas e usa o tamanho real deles para calibrar o
+   cálculo — a partir daí a faixa exibida passa a ser de ±15%.
+3. **Semáforo de destinos**: mostra se o GIF cabe no WhatsApp, no X/Twitter e
    no Discord. Se não couber, um toque ajusta as configurações para caber.
 
 Como isso funciona por dentro está em
@@ -49,26 +50,32 @@ Como isso funciona por dentro está em
 
 ## Funcionalidades
 
-- **Corte de duração** — arraste as pontas para escolher o trecho
-- **Formato da janela** — original, 1:1, 4:5, 9:16, 16:9, 4:3, 3:2, com
-  posição ajustável do recorte
-- **Velocidade** — de 0,25x (câmera lenta) a 4x
-- **Resolução** — de 160 px a 1080 px de largura, sem ampliar o original
-- **Quadros por segundo** — de 5 a 30
-- **Qualidade de cor** — tamanho da paleta, tipo de suavização (dither) e
-  estratégia de paleta
+- **Prévia do vídeo** com play/pause e linha do tempo marcando o trecho
+  escolhido
+- **Corte de duração** — arraste as pontas do seletor para escolher o trecho
+- **Formato da janela** — Original, 1:1, 4:5, 9:16, 16:9 e Personalizado, com
+  redimensionamento pelas alças dos quatro cantos direto na prévia e barras
+  para reposicionar o recorte
+- **Velocidade** — 0,25x (câmera lenta) a 2x
+- **Resolução** — de 160 px a 800 px de largura, oferecendo só as opções que
+  não ampliam o vídeo original
+- **Quadros por segundo** — 5, 8, 10, 12, 15, 20 ou 24
+- **Qualidade de cor** — paleta de 64, 128 ou 256 cores, cinco níveis de
+  suavização (dither) e três estratégias de paleta
+- **Repetição** — GIF em loop infinito ou tocando uma vez só
 - **Conversão em duas passagens** (`palettegen` + `paletteuse`), que é o que
   separa um GIF bonito de um GIF "lavado"
 - **Progresso com cancelamento**
-- **Salvar na galeria e compartilhar**
+- **Salvar na galeria e compartilhar**, com a tela final mostrando o quanto a
+  previsão errou em relação ao arquivo gerado
 
 ## Como rodar
 
-Requer Flutter 3.44+ e o Android SDK (API 36) com NDK instalados.
+Requer Flutter 3.44+ (Dart 3.12+) e o Android SDK (API 36) com NDK instalados.
 
 ```bash
-git clone https://github.com/lianeheidemann/aplicativo-video-to-gif-1.git
-cd aplicativo-video-to-gif-1
+git clone https://github.com/lianeheidemann/aplicativo-video-to-gif.git
+cd aplicativo-video-to-gif
 
 flutter pub get
 flutter test
@@ -84,7 +91,22 @@ flutter build appbundle --release
 > O `gradlew` e o `local.properties` não são versionados (convenção do
 > Flutter) — a própria ferramenta os recria no primeiro build. Se der erro de
 > NDK, ajuste `ndkVersion` em `android/app/build.gradle.kts` para a versão
-> que você tem instalada; a mensagem de erro informa qual é.
+> que você tem instalada; a mensagem de erro informa qual é. Sem o arquivo
+> `android/key.properties` (modelo em `android/key.properties.example`) o
+> build de release é assinado com a chave de depuração, que serve para testar
+> mas não para enviar à Play Store.
+
+## Permissões
+
+O `AndroidManifest.xml` remove de propósito as permissões que algumas
+dependências declaram sozinhas:
+
+- **sem `INTERNET`** — nada sai do aparelho, o que simplifica o formulário de
+  Segurança dos Dados da Play Store;
+- **sem `READ_MEDIA_VIDEO` / `READ_EXTERNAL_STORAGE`** — o vídeo é escolhido
+  pelo seletor do sistema, que libera acesso só ao arquivo selecionado;
+- **`WRITE_EXTERNAL_STORAGE` apenas até a API 28**, necessária para salvar na
+  galeria no Android 9 ou anterior.
 
 ## Publicar na Play Store
 
@@ -110,7 +132,7 @@ Documentos de apoio:
 lib/
 ├── main.dart                       # ponto de entrada
 ├── licenses.dart                   # aviso de licença do FFmpeg (LGPL)
-├── theme.dart
+├── theme.dart                      # tema Material 3 e cores do veredito
 ├── models/
 │   ├── video_info.dart             # metadados lidos pelo FFprobe
 │   ├── conversion_settings.dart    # tudo que o usuário controla
@@ -120,15 +142,19 @@ lib/
 │   ├── ffmpeg_service.dart         # leitura, medição e conversão
 │   └── output_service.dart         # galeria e compartilhamento
 └── ui/
-    ├── home_page.dart
-    ├── editor_page.dart            # controles + painel de estimativa
-    ├── converting_page.dart
-    ├── result_page.dart
+    ├── home_page.dart              # escolha do vídeo
+    ├── editor_page.dart            # controles + prévia com recorte
+    ├── converting_page.dart        # progresso e cancelamento
+    ├── result_page.dart            # GIF pronto, salvar e compartilhar
     └── widgets/
+        ├── labeled_section.dart    # card expansível e chips de opção
+        └── size_panel.dart         # painel de peso e compatibilidade
 
 test/
 ├── size_estimator_test.dart        # 29 testes do modelo de estimativa
 └── size_panel_test.dart            # 9 testes do painel de peso
+
+docs/                               # estimativa, licenças, privacidade, loja
 
 loja/                               # material pronto da ficha da Play Store
 ├── FICHA_DA_LOJA.md                # textos dentro dos limites de caracteres
@@ -137,6 +163,10 @@ loja/                               # material pronto da ficha da Play Store
 
 tool/
 └── gerar_icones.py                 # gera ícone, adaptativo e imagens da loja
+
+.github/workflows/
+├── ci.yml                          # formatação, análise, testes e APK debug
+└── release.yml                     # publica os APKs (e o AAB) num Release
 ```
 
 O `size_estimator.dart` é Dart puro, sem dependência do Flutter nem do
@@ -144,17 +174,22 @@ FFmpeg — por isso dá para testá-lo inteiro sem emulador.
 
 ## Qualidade
 
-`flutter analyze` limpo e **38 testes** passando. O workflow em
-`.github/workflows/ci.yml` roda formatação, análise, testes e um build do APK
-de debug a cada push — esse último serve para pegar erro de Gradle, de fusão
-de manifesto e de empacotamento das bibliotecas nativas do FFmpeg.
+São **38 testes automatizados**: 29 cobrindo o modelo de estimativa
+(dimensões de saída, contagem de quadros, monotonicidade, calibração, ajuste
+automático para um alvo e classificação) e 9 cobrindo o painel de peso.
+
+O workflow em `.github/workflows/ci.yml` roda, a cada push, `dart format`,
+`flutter analyze`, `flutter test` e um build do APK de debug — esse último
+serve para pegar erro de Gradle, de fusão de manifesto e de empacotamento das
+bibliotecas nativas do FFmpeg.
 
 ## Baixar o APK
 
 Cada versão publicada vira um
-[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif-1/releases)
+[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
 com os APKs prontos para instalar — comece pelo `arm64-v8a`, que serve para
-praticamente todo celular Android atual.
+praticamente todo celular Android atual. O `universal` é maior, mas funciona
+em qualquer aparelho.
 
 Para gerar uma versão nova:
 
@@ -164,9 +199,10 @@ git push origin v1.0.0
 ```
 
 O workflow `.github/workflows/release.yml` compila, nomeia e publica os
-arquivos sozinho. Configurando os segredos do keystore no repositório, ele
-também gera o `.aab` assinado que vai para a Play Console — o passo a passo
-está na [Etapa 5b do guia de publicação](docs/PUBLICAR_NA_PLAY_STORE.md).
+arquivos sozinho (também dá para dispará-lo pela aba Actions). Configurando
+os segredos do keystore no repositório, ele ainda gera o `.aab` assinado que
+vai para a Play Console — o passo a passo está na
+[Etapa 5b do guia de publicação](docs/PUBLICAR_NA_PLAY_STORE.md).
 
 ## Stack
 
@@ -175,6 +211,7 @@ está na [Etapa 5b do guia de publicação](docs/PUBLICAR_NA_PLAY_STORE.md).
 | Interface | Flutter 3.44 (Material 3) | um código, e a Play Store aceita direto |
 | Conversão | `ffmpeg_kit_flutter_new_min` (FFmpeg LGPL) | variante sem componentes GPL, permite app de código fechado |
 | Escolha de arquivo | `file_picker` | usa o seletor do sistema, sem exigir permissão de mídia |
+| Prévia | `video_player` | mostra o trecho e a moldura de recorte antes de converter |
 | Saída | `gal` + `share_plus` | salvar na galeria e compartilhar |
 
 ## Licença
