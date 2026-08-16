@@ -97,10 +97,12 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.gif_box_outlined,
-                  size: 96,
-                  color: theme.colorScheme.primary,
+                Image.asset(
+                  'assets/icon/icon-v4.png',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Ícone do conversor de vídeo para GIF',
                 ),
                 const SizedBox(height: 24),
                 Text(

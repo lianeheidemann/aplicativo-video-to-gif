@@ -13,8 +13,8 @@ Produz:
   loja/icone_512.png                                  ícone da ficha da loja
   loja/grafico_destaque_1024x500.png                  gráfico de destaque
 
-O desenho é feito com supersampling 4x e depois reduzido, o que dá bordas
-suaves sem precisar de antialiasing nativo do Pillow para polígonos.
+O ícone é redimensionado a partir de ``assets/icon/icon-v4.png``. O desenho
+vetorial antigo continua sendo usado somente no gráfico de destaque.
 """
 
 from pathlib import Path
@@ -22,6 +22,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 RAIZ = Path(__file__).resolve().parent.parent
+ICONE_FONTE = RAIZ / 'assets/icon/icon-v4.png'
 
 # Paleta: mesma semente de cor usada no tema do app (lib/theme.dart).
 ROXO_CLARO = (155, 111, 224)
@@ -99,21 +100,8 @@ def desenhar_marca(desenho, s, centro_x, centro_y, cor_triangulo):
 
 def icone_completo(tamanho):
     """Ícone quadrado com fundo, para o launcher legado e para a loja."""
-    s = tamanho * SS
-    fundo = gradiente(s, s, ROXO_CLARO, ROXO_ESCURO).convert('RGBA')
-
-    # Cantos arredondados no padrão de ícone de app.
-    mascara = Image.new('L', (s, s), 0)
-    ImageDraw.Draw(mascara).rounded_rectangle(
-        [0, 0, s - 1, s - 1], radius=int(0.22 * s), fill=255
-    )
-    fundo.putalpha(mascara)
-
-    camada = Image.new('RGBA', (s, s), (0, 0, 0, 0))
-    desenhar_marca(ImageDraw.Draw(camada), s, s / 2, s / 2, ROXO_ESCURO)
-    fundo = Image.alpha_composite(fundo, camada)
-
-    return fundo.resize((tamanho, tamanho), Image.LANCZOS)
+    with Image.open(ICONE_FONTE) as fonte:
+        return fonte.convert('RGBA').resize((tamanho, tamanho), Image.LANCZOS)
 
 
 def icone_adaptativo_frente(tamanho):
@@ -123,11 +111,15 @@ def icone_adaptativo_frente(tamanho):
     centrais são garantidos, então a marca fica menor aqui do que no ícone
     legado.
     """
-    s = tamanho * SS
-    camada = Image.new('RGBA', (s, s), (0, 0, 0, 0))
-    # 0.72 mantém a marca dentro da área segura mesmo no recorte circular.
-    desenhar_marca(ImageDraw.Draw(camada), s * 0.72, s / 2, s / 2, ROXO_ESCURO)
-    return camada.resize((tamanho, tamanho), Image.LANCZOS)
+    camada = Image.new('RGBA', (tamanho, tamanho), (0, 0, 0, 0))
+    # O centro de 66% é a área segura do ícone adaptativo. Assim o launcher
+    # pode aplicar máscaras diferentes sem cortar elementos da nova arte.
+    lado = round(tamanho * 2 / 3)
+    with Image.open(ICONE_FONTE) as fonte:
+        icone = fonte.convert('RGBA').resize((lado, lado), Image.LANCZOS)
+    margem = (tamanho - lado) // 2
+    camada.alpha_composite(icone, (margem, margem))
+    return camada
 
 
 def fonte(tamanho, negrito=True):
