@@ -82,50 +82,6 @@ flutter test
 flutter run
 ```
 
-Para gerar o pacote da loja:
-
-```bash
-flutter build appbundle --release
-```
-
-> O `gradlew` e o `local.properties` não são versionados (convenção do
-> Flutter) — a própria ferramenta os recria no primeiro build. Se der erro de
-> NDK, ajuste `ndkVersion` em `android/app/build.gradle.kts` para a versão
-> que você tem instalada; a mensagem de erro informa qual é. Sem o arquivo
-> `android/key.properties` (modelo em `android/key.properties.example`) o
-> build de release é assinado com a chave de depuração, que serve para testar
-> mas não para enviar à Play Store.
-
-## Permissões
-
-O `AndroidManifest.xml` remove de propósito as permissões que algumas
-dependências declaram sozinhas:
-
-- **sem `INTERNET`** — nada sai do aparelho, o que simplifica o formulário de
-  Segurança dos Dados da Play Store;
-- **sem `READ_MEDIA_VIDEO` / `READ_EXTERNAL_STORAGE`** — o vídeo é escolhido
-  pelo seletor do sistema, que libera acesso só ao arquivo selecionado;
-- **`WRITE_EXTERNAL_STORAGE` apenas até a API 28**, necessária para salvar na
-  galeria no Android 9 ou anterior.
-
-## Publicar na Play Store
-
-O passo a passo completo, incluindo a exigência de teste fechado com 12
-pessoas por 14 dias, está em
-**[`docs/PUBLICAR_NA_PLAY_STORE.md`](docs/PUBLICAR_NA_PLAY_STORE.md)**.
-
-Resumo do caminho: conta de desenvolvedor (US$ 25, uma vez) → chave de
-assinatura → AAB de release → ficha da loja → teste fechado de 14 dias →
-pedido de acesso à produção → publicação. **De 3 a 5 semanas no total**, com
-o teste fechado sendo o gargalo.
-
-Documentos de apoio:
-
-- [`docs/LICENCAS.md`](docs/LICENCAS.md) — por que este projeto usa a
-  variante LGPL do FFmpeg e o que isso exige de você
-- [`docs/POLITICA_DE_PRIVACIDADE.md`](docs/POLITICA_DE_PRIVACIDADE.md) —
-  modelo pronto para publicar (a Play Store exige a URL)
-
 ## Estrutura
 
 ```
