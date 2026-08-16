@@ -4,7 +4,7 @@
 
 # Video to GIF
 
-<img src="assets/badge/beta-version-animated.svg"/><br>
+<img src="assets/badge/beta-version-animated-rounded.svg"/><br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
