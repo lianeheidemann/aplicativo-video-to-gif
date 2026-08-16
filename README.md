@@ -35,13 +35,13 @@ spend time converting it**.
 
 ## Interface
 
-### Screenshots
+<div align="center">
 
 <img src="assets/image/interface-v4.png"/>
 
-### GIF
-
 <img width="20%" src="assets/demonstration-v2-com-moldura-celular-transparente.gif"/>
+
+</div>
 
 ## The problem it solves
 
