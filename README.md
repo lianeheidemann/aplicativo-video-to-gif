@@ -111,19 +111,14 @@ test/
 ├── size_estimator_test.dart        # 29 testes do modelo de estimativa
 └── size_panel_test.dart            # 9 testes do painel de peso
 
-docs/                               # estimativa, licenças, privacidade, loja
-
-loja/                               # material pronto da ficha da Play Store
-├── FICHA_DA_LOJA.md                # textos dentro dos limites de caracteres
-├── icone_512.png
-└── grafico_destaque_1024x500.png
+docs/                               # estimativa, licenças e privacidade
 
 tool/
-└── gerar_icones.py                 # gera ícone, adaptativo e imagens da loja
+└── gerar_icones.py                 # gera o ícone do app e o adaptativo
 
 .github/workflows/
 ├── ci.yml                          # formatação, análise, testes e APK debug
-└── release.yml                     # publica os APKs (e o AAB) num Release
+└── release.yml                     # publica os APKs num Release
 ```
 
 O `size_estimator.dart` é Dart puro, sem dependência do Flutter nem do
@@ -156,16 +151,13 @@ git push origin v1.0.0
 ```
 
 O workflow `.github/workflows/release.yml` compila, nomeia e publica os
-arquivos sozinho (também dá para dispará-lo pela aba Actions). Configurando
-os segredos do keystore no repositório, ele ainda gera o `.aab` assinado que
-vai para a Play Console — o passo a passo está na
-[Etapa 5b do guia de publicação](docs/PUBLICAR_NA_PLAY_STORE.md).
+arquivos sozinho (também dá para dispará-lo pela aba Actions).
 
 ## Stack
 
 | Camada | Escolha | Por quê |
 |---|---|---|
-| Interface | Flutter 3.44 (Material 3) | um código, e a Play Store aceita direto |
+| Interface | Flutter 3.44 (Material 3) | um código só, com visual nativo no Android |
 | Conversão | `ffmpeg_kit_flutter_new_min` (FFmpeg LGPL) | variante sem componentes GPL, permite app de código fechado |
 | Escolha de arquivo | `file_picker` | usa o seletor do sistema, sem exigir permissão de mídia |
 | Prévia | `video_player` | mostra o trecho e a moldura de recorte antes de converter |
