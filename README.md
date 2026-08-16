@@ -1,11 +1,15 @@
 <div align="center">
 
-<img width="110" src="assets/icon-v1.png"/>
+<img width="110" src="assets/icon.png"/>
 
 # Vídeo em GIF
-<img width="210" src="assets/badge_under-construction_lavanda.svg"/><br>
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
+
+[![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
+[![Versão](https://img.shields.io/github/v/release/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=vers%C3%A3o&labelColor=372b4d&color=7c53c9)](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
+[![Testes](https://img.shields.io/badge/testes-38-b79cf2?style=flat-square&labelColor=372b4d)](test)
+[![Licença](https://img.shields.io/github/license/lianeheidemann/aplicativo-video-to-gif?style=flat-square&label=licen%C3%A7a&labelColor=372b4d&color=d68fe0)](LICENSE)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
 ![Dart](https://img.shields.io/badge/Dart-3.12%2B-7c53c9?style=flat-square&logo=dart&logoColor=white&labelColor=372b4d)
@@ -22,9 +26,11 @@ gastar tempo convertendo**.
 
 <img src="assets/interface.png"/>
 
-`Toda a conversão roda no aparelho, com FFmpeg.`<br>
-`O app não tem permissão de
-internet.`
+> Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
+> internet.
+>
+> **[⬇ Baixar o APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
+> — instala direto no Android, sem loja.
 
 ---
 
@@ -165,8 +171,9 @@ arquivos sozinho (também dá para dispará-lo pela aba Actions).
 
 ## Licença
 
-Código do aplicativo: MIT.
-FFmpeg: LGPL-2.1-or-later — veja [`docs/LICENCAS.md`](docs/LICENCAS.md).
+Código do aplicativo: [MIT](LICENSE).
+FFmpeg: LGPL-2.1-or-later — atribuição em [`NOTICE`](NOTICE), detalhes e
+obrigações em [`docs/LICENCAS.md`](docs/LICENCAS.md).
 
 ---
 
