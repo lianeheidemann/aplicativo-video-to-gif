@@ -4,7 +4,7 @@
 
 # Vídeo em GIF
 
-![Beta](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=flat-square)
+![Beta Version](https://img.shields.io/badge/BETA%20VERSION-8B5CF6?style=for-the-badge)
 
 **Conversor de vídeo para GIF em Flutter, com estimativa de peso antes da conversão**
 
