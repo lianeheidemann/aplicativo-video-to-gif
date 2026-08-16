@@ -37,7 +37,7 @@ spend time converting it**.
 
 ### GIF
 
-<img width="30%" src="assets/demonstration-v2-com-moldura-celular-transparente.gif"/>
+<img width="20%" src="assets/demonstration-v2-com-moldura-celular-transparente.gif"/>
 
 ## The problem it solves
 
