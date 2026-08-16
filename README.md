@@ -208,16 +208,6 @@ rejected.
 | Preview | `video_player` | shows the clip and crop frame before converting |
 | Output | `gal` + `share_plus` | save to gallery and share |
 
-## Documentation
-
-| Document | What it's for |
-|---|---|
-| [`docs/en/HOW_THE_ESTIMATE_WORKS.md`](docs/en/HOW_THE_ESTIMATE_WORKS.md) | how the size is predicted, calibration and the measured-error table |
-| [`docs/en/LICENSES.md`](docs/en/LICENSES.md) | what FFmpeg's LGPL requires before publishing |
-| [`docs/en/PUBLISHING_TO_THE_PLAY_STORE.md`](docs/en/PUBLISHING_TO_THE_PLAY_STORE.md) | step-by-step publishing guide, including the 14-day closed test |
-| [`docs/en/PRIVACY_POLICY.md`](docs/en/PRIVACY_POLICY.md) | privacy policy template, required even with no data collection |
-| [`docs/en/STORE_LISTING.md`](docs/en/STORE_LISTING.md) | store listing copy, already within Play Console's limits |
-
 ## License
 
 App code: [MIT](LICENSE).
