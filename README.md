@@ -64,6 +64,15 @@ This app flips that around:
    WhatsApp's, X/Twitter's and Discord's limits. If it doesn't fit, one tap
    adjusts the settings so it does.
 
+> [!WARNING]
+> **The estimate is still being refined.** The pre-measurement guess (step 1)
+> is the least accurate part of the model — it's based on bitrate alone, which
+> is why its range is intentionally shown as wide (±40–55%). Tapping
+> **Measure** narrows this to ±15%, but a few content types (e.g. moving
+> gradients) can still fall outside that range. See
+> [Measured accuracy](docs/en/HOW_THE_ESTIMATE_WORKS.md#measured-accuracy) for
+> current numbers and known gaps.
+
 How this works under the hood is documented in
 [`docs/en/HOW_THE_ESTIMATE_WORKS.md`](docs/en/HOW_THE_ESTIMATE_WORKS.md).
 
