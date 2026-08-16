@@ -26,6 +26,8 @@ gastar tempo convertendo**.
 
 <img src="assets/interface.png"/>
 
+<img src="assets/demonstration.gif"/>
+
 > Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
 > internet.
 >
