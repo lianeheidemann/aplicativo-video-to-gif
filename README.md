@@ -31,6 +31,8 @@ spend time converting it**.
 > **[⬇ Download the APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
 > — installs straight onto Android, no store needed.
 
+<br>
+
 ## Interface
 
 ### Screenshots
