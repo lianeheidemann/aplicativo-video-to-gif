@@ -139,20 +139,6 @@ test/
 ├── size_estimator_medicoes_test.dart  # 7 tests against real measurements
 └── size_panel_test.dart            # 10 tests for the size panel
 
-docs/
-├── COMO_A_ESTIMATIVA_FUNCIONA.md   # the size model under the hood
-├── LICENCAS.md                     # obligations of FFmpeg's LGPL
-├── POLITICA_DE_PRIVACIDADE.md      # template required by Play Console
-├── PUBLICAR_NA_PLAY_STORE.md       # publishing guide, start to finish
-└── en/                              # English translations
-    ├── HOW_THE_ESTIMATE_WORKS.md
-    ├── LICENSES.md
-    ├── PRIVACY_POLICY.md
-    ├── PUBLISHING_TO_THE_PLAY_STORE.md
-    └── STORE_LISTING.md            # translated from loja/FICHA_DA_LOJA.md
-
-loja/                               # store listing copy and artwork, ready for the Play Store
-
 tool/
 ├── gerar_icones.py                 # generates the app icon and adaptive icon
 └── medir_precisao.py               # measures the model's real error against FFmpeg
