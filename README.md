@@ -22,7 +22,8 @@ gastar tempo convertendo**.
 
 <img src="assets/interface.png"/>
 
-`Toda a conversão roda no aparelho, com FFmpeg. O app não tem permissão de
+`Toda a conversão roda no aparelho, com FFmpeg.`<br>
+`O app não tem permissão de
 internet.`
 
 ---
