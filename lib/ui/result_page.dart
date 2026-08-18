@@ -132,6 +132,69 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                   const Divider(height: 28),
+                  Text(
+                    'Tamanho',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  _row(
+                    'Original',
+                    SizeEstimate.formatBytes(widget.video.fileSizeBytes),
+                  ),
+                  _row('Previsto', widget.estimate.formatted),
+                  if (widget.estimate.confidence !=
+                      EstimateConfidence.calibrated) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 15,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.estimate.confidence.explanation,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  _row(
+                    'Convertido',
+                    result.formattedSize,
+                    warn: result.bytes > widget.video.fileSizeBytes,
+                  ),
+                  if (result.bytes > widget.video.fileSizeBytes) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 15,
+                          color: const Color(0xFFE6A15D),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'O GIF ficou maior que o vídeo original. GIF é um '
+                            'formato menos eficiente que vídeo — comum em '
+                            'cenas com muito movimento.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   _row(
                     'Dimensões',
                     '${result.width}×${result.height} px',
@@ -149,12 +212,18 @@ class _ResultPageState extends State<ResultPage> {
                     original:
                         '${widget.video.durationSeconds.toStringAsFixed(1)}s',
                   ),
-                  _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
-                  _row(
-                    'Previsto antes de converter',
-                    widget.estimate.formatted,
+                  const Divider(height: 28),
+                  Text(
+                    'Qualidade',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  _row('Diferença da previsão', _accuracy()),
+                  _row('Cores', '${widget.settings.colors} cores'),
+                  _row('Suavização', widget.settings.dither.label),
+                  _row('Paleta', widget.settings.palette.label),
+                  const Divider(height: 28),
+                  _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
                 ],
               ),
             ),
@@ -199,9 +268,17 @@ class _ResultPageState extends State<ResultPage> {
 
   /// Linha "rótulo à esquerda, valor à direita" usada no card de detalhes.
   /// Quando [original] é informado, mostra o valor do vídeo de origem antes
-  /// do valor do GIF gerado (ex.: "1920×1080 px → 480×270 px").
-  Widget _row(String label, String value, {String? original}) {
+  /// do valor do GIF gerado (ex.: "1920×1080 px → 480×270 px"). [warn]
+  /// destaca o valor final em laranja quando ele piorou em relação à
+  /// origem (ex.: GIF mais pesado que o vídeo original).
+  Widget _row(
+    String label,
+    String value, {
+    String? original,
+    bool warn = false,
+  }) {
     final theme = Theme.of(context);
+    const warnColor = Color(0xFFE6A15D);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -228,7 +305,9 @@ class _ResultPageState extends State<ResultPage> {
                   child: Icon(
                     Icons.arrow_forward_rounded,
                     size: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: warn
+                        ? warnColor
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -236,6 +315,7 @@ class _ResultPageState extends State<ResultPage> {
                 value,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
+                  color: warn ? warnColor : null,
                 ),
               ),
             ],
@@ -249,14 +329,4 @@ class _ResultPageState extends State<ResultPage> {
   /// origem), já que o [VideoInfo] não guarda a contagem exata.
   int _originalFrames() =>
       (widget.video.durationSeconds * widget.video.frameRate).round();
-
-  /// Mostrar o erro da previsão é honesto e ajuda o usuário a calibrar a
-  /// própria confiança no número da tela anterior.
-  String _accuracy() {
-    final predicted = widget.estimate.bytes;
-    if (predicted <= 0) return '—';
-    final diff = (widget.result.bytes - predicted) / predicted * 100;
-    final sign = diff >= 0 ? '+' : '';
-    return '$sign${diff.toStringAsFixed(0)}%';
-  }
 }

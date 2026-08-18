@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'licenses.dart';
 import 'theme.dart';
+import 'theme_controller.dart';
 import 'ui/home_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   // Exigência da LGPL do FFmpeg: o aviso precisa estar acessível no app.
   registerThirdPartyLicenses();
+  await loadThemeMode();
   runApp(const VideoToGifApp());
 }
 
@@ -17,12 +20,18 @@ class VideoToGifApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Vídeo em GIF',
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
-      home: const HomePage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'Vídeo em GIF',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.light),
+          darkTheme: buildTheme(Brightness.dark),
+          themeMode: mode,
+          home: const HomePage(),
+        );
+      },
     );
   }
 }

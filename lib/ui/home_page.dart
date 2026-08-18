@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/conversion_settings.dart';
 import '../services/ffmpeg_service.dart';
+import '../theme_controller.dart';
 import 'editor_page.dart';
 
 /// Tela inicial: apresenta o app e deixa o usuário escolher um vídeo para
@@ -78,6 +79,19 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         actions: [
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeModeNotifier,
+            builder: (context, mode, _) {
+              final isDark = mode == ThemeMode.dark;
+              return IconButton(
+                tooltip: isDark ? 'Ativar modo claro' : 'Ativar modo escuro',
+                icon: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                ),
+                onPressed: toggleThemeMode,
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Sobre e licenças',
             icon: const Icon(Icons.info_outline),

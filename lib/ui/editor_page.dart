@@ -12,11 +12,7 @@ import 'converting_page.dart';
 import 'widgets/labeled_section.dart';
 import 'widgets/size_panel.dart';
 
-const _customAspectPreset = AspectPreset(
-  'Personalizado',
-  -1,
-  hint: 'Largura e altura livres',
-);
+const _customAspectPreset = AspectPreset('Personalizados', -1);
 
 /// As quatro alças de canto usadas para redimensionar a janela de recorte.
 enum _CropHandle { topLeft, topRight, bottomLeft, bottomRight }
@@ -750,10 +746,12 @@ class _EditorPageState extends State<EditorPage> {
           ),
           if (crop != null) ...[
             const SizedBox(height: 18),
-            _cropSizeSummary(crop),
-            const SizedBox(height: 12),
-            _cropSizeInputs(crop),
-            const SizedBox(height: 12),
+            if (_aspect == _customAspectPreset) ...[
+              _cropSizeSummary(crop),
+              const SizedBox(height: 12),
+              _cropSizeInputs(crop),
+              const SizedBox(height: 12),
+            ],
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
