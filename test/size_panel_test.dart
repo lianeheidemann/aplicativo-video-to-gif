@@ -30,9 +30,9 @@ SizeEstimate _estimate({
 Future<void> _pumpPanel(
   WidgetTester tester, {
   required SizeEstimate estimate,
+  int originalBytes = 24 * 1024 * 1024,
   VoidCallback? onMeasure,
   VoidCallback? onConvert,
-  void Function(ShareTarget)? onFitTo,
   bool measuring = false,
 }) async {
   tester.view.physicalSize = const Size(1000, 1800);
@@ -46,22 +46,18 @@ Future<void> _pumpPanel(
           padding: const EdgeInsets.all(20),
           child: SizePanel(
             estimate: estimate,
+            originalBytes: originalBytes,
             suggestion: 'Dica: 40% mais leve se baixar para 10 FPS.',
             summary: _summary,
             measuring: measuring,
             onMeasure: onMeasure ?? () {},
             onConvert: onConvert ?? () {},
-            onFitTo: onFitTo ?? (_) {},
           ),
         ),
       ),
     ),
   );
 }
-
-/// O nome de um destino aparece duas vezes na tela: no chip de
-/// compatibilidade e no botão de compartilhar. Só o chip responde a toque.
-Finder _targetChip(String name) => find.widgetWithText(ActionChip, name);
 
 void main() {
   group('SizePanel', () {
@@ -144,44 +140,6 @@ void main() {
 
       expect(find.text('Medindo…'), findsOneWidget);
       await tester.tap(find.text('Medindo…'));
-      expect(chamou, isFalse);
-    });
-
-    testWidgets('tocar num destino que não cabe pede o ajuste automático', (
-      tester,
-    ) async {
-      ShareTarget? pedido;
-      // 12 MB medidos viram 13,8 MB no topo da faixa: cabe no WhatsApp
-      // (16 MB), não cabe no Discord (10 MB).
-      await _pumpPanel(
-        tester,
-        estimate: _estimate(
-          bytes: 12 * 1024 * 1024,
-          confidence: EstimateConfidence.calibrated,
-        ),
-        onFitTo: (target) => pedido = target,
-      );
-
-      await tester.tap(_targetChip('Discord'));
-      await tester.pump();
-
-      expect(pedido?.name, 'Discord (grátis)');
-    });
-
-    testWidgets('destino que já cabe não dispara ajuste', (tester) async {
-      var chamou = false;
-      await _pumpPanel(
-        tester,
-        estimate: _estimate(
-          bytes: 1 * 1024 * 1024,
-          confidence: EstimateConfidence.calibrated,
-        ),
-        onFitTo: (_) => chamou = true,
-      );
-
-      await tester.tap(_targetChip('WhatsApp'));
-      await tester.pump();
-
       expect(chamou, isFalse);
     });
 

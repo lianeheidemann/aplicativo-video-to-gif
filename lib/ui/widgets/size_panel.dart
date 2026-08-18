@@ -3,28 +3,31 @@ import 'package:flutter/material.dart';
 import '../../models/size_estimate.dart';
 import '../../theme.dart';
 
-/// Painel final do editor: mostra a estimativa de peso do GIF, dicas de
-/// como reduzi-lo, compatibilidade com destinos comuns de compartilhamento
-/// e o botão de converter.
+/// Painel final do editor: compara o peso do vídeo original com a
+/// estimativa do GIF, dá dicas de como reduzi-lo e traz o botão de
+/// converter.
 class SizePanel extends StatelessWidget {
   const SizePanel({
     super.key,
     required this.estimate,
+    required this.originalBytes,
     required this.suggestion,
     required this.summary,
     required this.measuring,
     required this.onMeasure,
     required this.onConvert,
-    required this.onFitTo,
   });
 
   final SizeEstimate estimate;
+
+  /// Tamanho em bytes do vídeo original, mostrado ao lado da estimativa do
+  /// GIF para o usuário comparar o antes e o depois.
+  final int originalBytes;
   final String suggestion;
   final String summary;
   final bool measuring;
   final VoidCallback onMeasure;
   final VoidCallback onConvert;
-  final void Function(ShareTarget target) onFitTo;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +70,24 @@ class SizePanel extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        SizeEstimate.formatBytes(originalBytes),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10, left: 6, right: 6),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 17,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     Text(
                       estimate.formatted,
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -144,15 +165,6 @@ class SizePanel extends StatelessWidget {
                         : 'Medir',
                   ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  'Compatibilidade',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _TargetsWrap(estimate: estimate, onFitTo: onFitTo),
                 if (suggestion.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -162,44 +174,6 @@ class SizePanel extends StatelessWidget {
                     ),
                   ),
                 ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Compartilhar',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Os atalhos ficam disponíveis após a geração do GIF.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const [
-                    _ShareButton(
-                      label: 'WhatsApp',
-                      icon: Icons.chat_bubble_outline,
-                    ),
-                    _ShareButton(label: 'X', icon: Icons.alternate_email),
-                    _ShareButton(label: 'Discord', icon: Icons.forum_outlined),
-                    _ShareButton(label: 'Mais', icon: Icons.share_outlined),
-                  ],
-                ),
               ],
             ),
           ),
@@ -335,64 +309,3 @@ class _ImpactBar extends StatelessWidget {
   }
 }
 
-/// Chips de compatibilidade com destinos comuns (WhatsApp, X, Discord):
-/// mostra se o GIF cabe no limite de cada um e, se não couber, oferece um
-/// ajuste automático das configurações ao tocar.
-class _TargetsWrap extends StatelessWidget {
-  const _TargetsWrap({required this.estimate, required this.onFitTo});
-
-  final SizeEstimate estimate;
-  final void Function(ShareTarget target) onFitTo;
-
-  @override
-  Widget build(BuildContext context) {
-    final targets = ShareTarget.targets
-        .where(
-          (target) =>
-              target.name == 'WhatsApp' ||
-              target.name == 'X / Twitter' ||
-              target.name.startsWith('Discord'),
-        )
-        .toList();
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: targets.map((target) {
-        final fits = estimate.fitsIn(target);
-        return ActionChip(
-          avatar: Icon(
-            fits ? Icons.check_circle : Icons.warning_amber_rounded,
-            size: 17,
-            color: fits
-                ? const Color(0xFF58C78C)
-                : Theme.of(context).colorScheme.error,
-          ),
-          label: Text(target.name.replaceAll(' (grátis)', '')),
-          onPressed: fits ? null : () => onFitTo(target),
-          tooltip: fits
-              ? 'Compatível com o limite atual'
-              : 'Toque para ajustar automaticamente',
-        );
-      }).toList(),
-    );
-  }
-}
-
-/// Botão de compartilhamento ilustrativo (desabilitado): os atalhos reais
-/// só ficam disponíveis depois que o GIF é gerado, na tela de resultado.
-class _ShareButton extends StatelessWidget {
-  const _ShareButton({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: null,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-    );
-  }
-}

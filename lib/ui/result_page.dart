@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/conversion_settings.dart';
 import '../models/size_estimate.dart';
+import '../models/video_info.dart';
 import '../services/ffmpeg_service.dart';
 import '../services/output_service.dart';
 import '../theme.dart';
@@ -14,11 +15,16 @@ class ResultPage extends StatefulWidget {
     required this.result,
     required this.estimate,
     required this.settings,
+    required this.video,
   });
 
   final ConversionResult result;
   final SizeEstimate estimate;
   final ConversionSettings settings;
+
+  /// Vídeo original, usado para mostrar as dimensões/quadros/duração de
+  /// origem ao lado dos valores do GIF gerado.
+  final VideoInfo video;
 
   @override
   State<ResultPage> createState() => _ResultPageState();
@@ -126,12 +132,22 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                   const Divider(height: 28),
-                  _row('Dimensões', '${result.width}×${result.height} px'),
-                  _row('Quadros', '${result.frames}'),
+                  _row(
+                    'Dimensões',
+                    '${result.width}×${result.height} px',
+                    original: '${widget.video.width}×${widget.video.height} px',
+                  ),
+                  _row(
+                    'Quadros',
+                    '${result.frames}',
+                    original: '${_originalFrames()}',
+                  ),
                   _row(
                     'Duração',
                     '${widget.settings.outputDurationSeconds.toStringAsFixed(1)}s '
                         'a ${widget.settings.fps} FPS',
+                    original:
+                        '${widget.video.durationSeconds.toStringAsFixed(1)}s',
                   ),
                   _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
                   _row(
@@ -182,7 +198,9 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   /// Linha "rótulo à esquerda, valor à direita" usada no card de detalhes.
-  Widget _row(String label, String value) {
+  /// Quando [original] é informado, mostra o valor do vídeo de origem antes
+  /// do valor do GIF gerado (ex.: "1920×1080 px → 480×270 px").
+  Widget _row(String label, String value, {String? original}) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -195,16 +213,42 @@ class _ResultPageState extends State<ResultPage> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (original != null) ...[
+                Text(
+                  original,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  /// Estimativa do número de quadros do vídeo original (duração × FPS de
+  /// origem), já que o [VideoInfo] não guarda a contagem exata.
+  int _originalFrames() =>
+      (widget.video.durationSeconds * widget.video.frameRate).round();
 
   /// Mostrar o erro da previsão é honesto e ajuda o usuário a calibrar a
   /// própria confiança no número da tela anterior.

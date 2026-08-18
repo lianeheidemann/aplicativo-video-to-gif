@@ -57,6 +57,7 @@ class _ConvertingPageState extends State<ConvertingPage> {
             result: result,
             estimate: widget.estimate,
             settings: widget.settings,
+            video: widget.video,
           ),
         ),
       );

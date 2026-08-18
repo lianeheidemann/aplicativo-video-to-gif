@@ -7,6 +7,7 @@ class LabeledSection extends StatelessWidget {
     required this.title,
     required this.child,
     this.value,
+    this.originalValue,
     this.hint,
     this.tip,
     this.icon,
@@ -15,6 +16,10 @@ class LabeledSection extends StatelessWidget {
 
   final String title;
   final String? value;
+
+  /// Valor do vídeo original, mostrado antes do valor selecionado para
+  /// que o usuário compare o que vai mudar na conversão.
+  final String? originalValue;
   final String? hint;
   final String? tip;
   final IconData? icon;
@@ -54,16 +59,43 @@ class LabeledSection extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        subtitle: value == null
+        subtitle: (value == null && originalValue == null)
             ? null
-            : Text(
-                value!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
+            : Row(
+                children: [
+                  if (originalValue != null) ...[
+                    Flexible(
+                      child: Text(
+                        'Original: ${originalValue!}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (value != null)
+                    Flexible(
+                      child: Text(
+                        value!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
               ),
         children: [
           if (hint != null) ...[

@@ -138,19 +138,6 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
-  /// Degrada automaticamente as configurações até o GIF caber no limite de
-  /// [target] (com 10% de folga), usada pelos chips de compatibilidade.
-  void _fitTo(ShareTarget target) {
-    final fitted = SizeEstimator.fitToTarget(
-      settings: _settings,
-      video: _video,
-      targetBytes: (target.limitBytes * 0.9).round(),
-      profile: _profile,
-    );
-    _update(fitted);
-    _showMessage('Ajustado para caber no ${target.name}.');
-  }
-
   /// Mostra uma snackbar simples, substituindo qualquer uma já visível.
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -210,6 +197,7 @@ class _EditorPageState extends State<EditorPage> {
             _colorSection(),
             SizePanel(
               estimate: _estimate,
+              originalBytes: _video.fileSizeBytes,
               suggestion: SizeEstimator.suggestionFor(
                 settings: _settings,
                 video: _video,
@@ -222,7 +210,6 @@ class _EditorPageState extends State<EditorPage> {
               measuring: _measuring,
               onMeasure: _measure,
               onConvert: _openingConversion ? () {} : _convert,
-              onFitTo: _fitTo,
             ),
           ],
         ),
@@ -679,6 +666,7 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.content_cut_rounded,
       title: 'Duração',
       value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
+      originalValue: '${_video.durationSeconds.toStringAsFixed(1)} s',
       hint: 'Selecione a parte do vídeo que deseja transformar em GIF.',
       tip: 'Cortes menores geram GIFs menores.',
       child: Column(
@@ -742,6 +730,7 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.crop_rounded,
       title: 'Formato da janela',
       value: _aspect.label,
+      originalValue: _ratioLabel(_video.width, _video.height),
       hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
       tip: _aspect == _customAspectPreset
           ? 'Arraste qualquer bolinha de canto. Largura e altura são livres.'
@@ -1116,18 +1105,42 @@ class _EditorPageState extends State<EditorPage> {
 
   /// Seção de velocidade de reprodução do GIF.
   Widget _speedSection() {
+    const min = ConversionSettings.minSpeed;
+    const max = ConversionSettings.maxSpeed;
+    final speed = _settings.speed.clamp(min, max).toDouble();
+
     return LabeledSection(
       icon: Icons.speed_rounded,
       title: 'Velocidade',
       value: '${_formatSpeed(_settings.speed)}x',
+      originalValue: '${_formatSpeed(1.0)}x',
       hint:
           'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
       tip: '1x oferece o melhor equilíbrio entre duração e tamanho.',
-      child: OptionChips<double>(
-        options: ConversionSettings.speedOptions,
-        selected: _settings.speed,
-        labelBuilder: (speed) => '${_formatSpeed(speed)}x',
-        onSelected: (speed) => _update(_settings.copyWith(speed: speed)),
+      child: Column(
+        children: [
+          Slider(
+            min: min,
+            max: max,
+            divisions: ((max - min) / 0.05).round(),
+            value: speed,
+            label: '${_formatSpeed(speed)}x',
+            onChanged: (value) => _update(_settings.copyWith(speed: value)),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_formatSpeed(min)}x',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              Text(
+                '${_formatSpeed(max)}x',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1148,6 +1161,7 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.photo_size_select_large_rounded,
       title: 'Resolução',
       value: '$width×$height',
+      originalValue: '${_video.width}×${_video.height}',
       hint:
           'Reduzir a largura diminui significativamente o tamanho do arquivo.',
       tip: '480 px oferece boa qualidade para a maioria dos casos.',
@@ -1166,6 +1180,7 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.animation_rounded,
       title: 'Quadros por segundo (FPS)',
       value: '${_settings.fps} FPS',
+      originalValue: '${_video.frameRate.round()} FPS',
       hint:
           'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
       tip: '12 FPS é um bom equilíbrio entre fluidez e tamanho.',
@@ -1189,7 +1204,8 @@ class _EditorPageState extends State<EditorPage> {
     return LabeledSection(
       icon: Icons.palette_outlined,
       title: 'Qualidade das cores',
-      value: '${_settings.colors} cores · ${_settings.dither.label}',
+      value: '${_settings.colors} cores',
+      originalValue: 'Cores ilimitadas',
       hint:
           'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
       tip:
@@ -1291,10 +1307,26 @@ class _EditorPageState extends State<EditorPage> {
         : '${rest.toStringAsFixed(1)}s';
   }
 
-  /// Formata a velocidade sem casas decimais desnecessárias (1 em vez de
-  /// 1.0, mas 1.5 continua com uma casa).
-  static String _formatSpeed(double speed) =>
-      speed == speed.roundToDouble() ? '${speed.round()}' : '$speed';
+  /// Formata a velocidade com no máximo duas casas decimais, sem zeros
+  /// desnecessários (1 em vez de 1.00, 1.5 em vez de 1.50). Arredondar antes
+  /// de formatar evita artefatos de ponto flutuante vindos dos passos do
+  /// slider (ex.: 1.9500000000000002).
+  static String _formatSpeed(double speed) {
+    final rounded = (speed * 100).round() / 100;
+    if (rounded == rounded.roundToDouble()) return '${rounded.round()}';
+    var text = rounded.toStringAsFixed(2);
+    if (text.endsWith('0')) text = text.substring(0, text.length - 1);
+    return text;
+  }
+
+  /// Reduz "largura×altura" para a proporção "W:H" mais simples (ex.:
+  /// 1920×1080 → 16:9), usado para mostrar o formato original do vídeo.
+  static String _ratioLabel(int width, int height) {
+    if (width <= 0 || height <= 0) return '$width×$height';
+    int gcd(int a, int b) => b == 0 ? a : gcd(b, a % b);
+    final g = gcd(width, height);
+    return '${width ~/ g}:${height ~/ g}';
+  }
 }
 
 /// Desenha, sobre a prévia do vídeo, o véu escurecendo a área fora do
