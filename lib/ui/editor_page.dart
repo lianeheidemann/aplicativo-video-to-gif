@@ -718,7 +718,6 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Duração',
       value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
       originalValue: '${_video.durationSeconds.toStringAsFixed(1)} s',
-      hint: 'Selecione a parte do vídeo que deseja transformar em GIF.',
       child: Column(
         children: [
           RangeSlider(
@@ -783,7 +782,6 @@ class _EditorPageState extends State<EditorPage> {
           ? '${_video.width}×${_video.height}'
           : _aspect.label,
       originalValue: _ratioLabel(_video.width, _video.height),
-      hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
