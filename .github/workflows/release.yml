@@ -104,11 +104,15 @@ jobs:
 
       # Cada build é copiado logo em seguida, antes do próximo rodar, para não
       # depender de como o Flutter limpa a pasta de saída entre invocações.
+      # `--no-shrink` impede somente o plugin do Flutter de injetar uma segunda
+      # configuração ProGuard quebrada no AGP 9.1. O build.gradle.kts continua
+      # com minificação e redução de recursos ativadas usando as regras locais.
       - name: Compilar APKs por arquitetura
         run: |
           V="${{ steps.versao.outputs.nome }}"
           mkdir -p entrega
           flutter build apk --release --split-per-abi \
+            --no-shrink \
             --build-name="$V" \
             --build-number=${{ steps.versao.outputs.codigo }}
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
@@ -120,6 +124,7 @@ jobs:
         run: |
           V="${{ steps.versao.outputs.nome }}"
           flutter build apk --release \
+            --no-shrink \
             --build-name="$V" \
             --build-number=${{ steps.versao.outputs.codigo }}
           cp build/app/outputs/flutter-apk/app-release.apk \
@@ -130,6 +135,7 @@ jobs:
         run: |
           V="${{ steps.versao.outputs.nome }}"
           flutter build appbundle --release \
+            --no-shrink \
             --build-name="$V" \
             --build-number=${{ steps.versao.outputs.codigo }}
           cp build/app/outputs/bundle/release/app-release.aab \
