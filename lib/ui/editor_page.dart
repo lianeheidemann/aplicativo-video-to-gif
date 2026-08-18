@@ -14,8 +14,19 @@ import 'widgets/size_panel.dart';
 
 const _customAspectPreset = AspectPreset('Personalizados', -1);
 
-/// As quatro alças de canto usadas para redimensionar a janela de recorte.
-enum _CropHandle { topLeft, topRight, bottomLeft, bottomRight }
+/// As alças de canto e de borda usadas para redimensionar a janela de
+/// recorte. As de borda (top/bottom/left/right) só aparecem no preset
+/// "Personalizados", onde largura e altura são independentes.
+enum _CropHandle {
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight,
+  top,
+  bottom,
+  left,
+  right,
+}
 
 /// Tela principal de edição: prévia do vídeo, corte de duração, recorte de
 /// área, velocidade, resolução, FPS/cores e o painel de estimativa de
@@ -319,6 +330,7 @@ class _EditorPageState extends State<EditorPage> {
                   crop: _settings.crop,
                   onResize: _resizeCropFromHandle,
                   onMove: _moveCropFromHandle,
+                  freeform: _aspect == _customAspectPreset,
                 ),
               ],
             ),
@@ -413,6 +425,14 @@ class _EditorPageState extends State<EditorPage> {
       case _CropHandle.bottomRight:
         right += dx;
         bottom += dy;
+      case _CropHandle.top:
+        top += dy;
+      case _CropHandle.bottom:
+        bottom += dy;
+      case _CropHandle.left:
+        left += dx;
+      case _CropHandle.right:
+        right += dx;
     }
 
     left = left.clamp(0.0, right - minSize);
@@ -428,10 +448,14 @@ class _EditorPageState extends State<EditorPage> {
     var x = left.round().clamp(0, _video.width - width);
     var y = top.round().clamp(0, _video.height - height);
 
-    if (handle == _CropHandle.topLeft || handle == _CropHandle.bottomLeft) {
+    if (handle == _CropHandle.topLeft ||
+        handle == _CropHandle.bottomLeft ||
+        handle == _CropHandle.left) {
       x = (right.round() - width).clamp(0, _video.width - width);
     }
-    if (handle == _CropHandle.topLeft || handle == _CropHandle.topRight) {
+    if (handle == _CropHandle.topLeft ||
+        handle == _CropHandle.topRight ||
+        handle == _CropHandle.top) {
       y = (bottom.round() - height).clamp(0, _video.height - height);
     }
 
@@ -449,13 +473,25 @@ class _EditorPageState extends State<EditorPage> {
     double ratio,
   ) {
     const minSide = 32.0;
+    // As alças de borda (top/bottom/left/right) só existem no modo livre
+    // ("Personalizados"), que nunca chama esta função — os ramos delas
+    // abaixo são inalcançáveis em tempo de execução e só existem para o
+    // switch exaustivo sobre `_CropHandle` compilar; foram agrupados com
+    // o canto/lado correspondente para manter os valores plausíveis.
     final deltaW = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft => -dx,
-      _CropHandle.topRight || _CropHandle.bottomRight => dx,
+      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left =>
+        -dx,
+      _CropHandle.topRight ||
+      _CropHandle.bottomRight ||
+      _CropHandle.right => dx,
+      _CropHandle.top || _CropHandle.bottom => 0.0,
     };
     final deltaH = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.topRight => -dy,
-      _CropHandle.bottomLeft || _CropHandle.bottomRight => dy,
+      _CropHandle.topLeft || _CropHandle.topRight || _CropHandle.top => -dy,
+      _CropHandle.bottomLeft ||
+      _CropHandle.bottomRight ||
+      _CropHandle.bottom => dy,
+      _CropHandle.left || _CropHandle.right => 0.0,
     };
 
     final widthChange = deltaW / crop.width;
@@ -476,23 +512,42 @@ class _EditorPageState extends State<EditorPage> {
 
     final anchorX = switch (handle) {
       _CropHandle.topLeft ||
-      _CropHandle.bottomLeft => (crop.x + crop.width).toDouble(),
-      _CropHandle.topRight || _CropHandle.bottomRight => crop.x.toDouble(),
+      _CropHandle.bottomLeft ||
+      _CropHandle.left => (crop.x + crop.width).toDouble(),
+      _CropHandle.topRight ||
+      _CropHandle.bottomRight ||
+      _CropHandle.right ||
+      _CropHandle.top ||
+      _CropHandle.bottom => crop.x.toDouble(),
     };
     final anchorY = switch (handle) {
       _CropHandle.topLeft ||
-      _CropHandle.topRight => (crop.y + crop.height).toDouble(),
-      _CropHandle.bottomLeft || _CropHandle.bottomRight => crop.y.toDouble(),
+      _CropHandle.topRight ||
+      _CropHandle.top => (crop.y + crop.height).toDouble(),
+      _CropHandle.bottomLeft ||
+      _CropHandle.bottomRight ||
+      _CropHandle.bottom ||
+      _CropHandle.left ||
+      _CropHandle.right => crop.y.toDouble(),
     };
 
     final maxWidthByX = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft => anchorX,
-      _CropHandle.topRight || _CropHandle.bottomRight => _video.width - anchorX,
+      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left =>
+        anchorX,
+      _CropHandle.topRight ||
+      _CropHandle.bottomRight ||
+      _CropHandle.right ||
+      _CropHandle.top ||
+      _CropHandle.bottom => _video.width - anchorX,
     };
     final maxHeightByY = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.topRight => anchorY,
+      _CropHandle.topLeft || _CropHandle.topRight || _CropHandle.top =>
+        anchorY,
       _CropHandle.bottomLeft ||
-      _CropHandle.bottomRight => _video.height - anchorY,
+      _CropHandle.bottomRight ||
+      _CropHandle.bottom ||
+      _CropHandle.left ||
+      _CropHandle.right => _video.height - anchorY,
     };
 
     final maxWidth = maxWidthByX < maxHeightByY * ratio
@@ -512,17 +567,22 @@ class _EditorPageState extends State<EditorPage> {
     evenHeight = evenHeight.clamp(2, _video.height);
 
     final x = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft =>
+      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left =>
         (anchorX.round() - evenWidth).clamp(0, _video.width - evenWidth),
-      _CropHandle.topRight || _CropHandle.bottomRight => anchorX.round().clamp(
-        0,
-        _video.width - evenWidth,
-      ),
+      _CropHandle.topRight ||
+      _CropHandle.bottomRight ||
+      _CropHandle.right ||
+      _CropHandle.top ||
+      _CropHandle.bottom => anchorX.round().clamp(0, _video.width - evenWidth),
     };
     final y = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.topRight =>
+      _CropHandle.topLeft || _CropHandle.topRight || _CropHandle.top =>
         (anchorY.round() - evenHeight).clamp(0, _video.height - evenHeight),
-      _CropHandle.bottomLeft || _CropHandle.bottomRight =>
+      _CropHandle.bottomLeft ||
+      _CropHandle.bottomRight ||
+      _CropHandle.bottom ||
+      _CropHandle.left ||
+      _CropHandle.right =>
         anchorY.round().clamp(0, _video.height - evenHeight),
     };
 
@@ -664,7 +724,6 @@ class _EditorPageState extends State<EditorPage> {
       value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
       originalValue: '${_video.durationSeconds.toStringAsFixed(1)} s',
       hint: 'Selecione a parte do vídeo que deseja transformar em GIF.',
-      tip: 'Cortes menores geram GIFs menores.',
       child: Column(
         children: [
           RangeSlider(
@@ -728,9 +787,6 @@ class _EditorPageState extends State<EditorPage> {
       value: _aspect.label,
       originalValue: _ratioLabel(_video.width, _video.height),
       hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
-      tip: _aspect == _customAspectPreset
-          ? 'Arraste qualquer bolinha de canto. Largura e altura são livres.'
-          : 'Arraste uma bolinha de canto. A proporção escolhida permanece travada.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1022,7 +1078,6 @@ class _EditorPageState extends State<EditorPage> {
       originalValue: '${_formatSpeed(1.0)}x',
       hint:
           'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
-      tip: '1x oferece o melhor equilíbrio entre duração e tamanho.',
       child: Column(
         children: [
           Slider(
@@ -1244,6 +1299,7 @@ class _CropOverlay extends StatelessWidget {
     required this.crop,
     required this.onResize,
     required this.onMove,
+    required this.freeform,
   });
 
   final VideoInfo video;
@@ -1251,6 +1307,10 @@ class _CropOverlay extends StatelessWidget {
   final void Function(_CropHandle handle, Offset delta, Size previewSize)
   onResize;
   final void Function(Offset delta, Size previewSize) onMove;
+
+  /// Se true (preset "Personalizados"), também mostra as quatro alças de
+  /// borda (meio de cada lado) para redimensionar um lado por vez.
+  final bool freeform;
 
   static const _handleBoxSize = 34.0;
 
@@ -1400,6 +1460,20 @@ class _CropOverlay extends StatelessWidget {
               left + width - 17,
               top + height - 17,
             ),
+            if (freeform) ...[
+              handle(_CropHandle.top, left + width / 2 - 17, top - 17),
+              handle(
+                _CropHandle.bottom,
+                left + width / 2 - 17,
+                top + height - 17,
+              ),
+              handle(_CropHandle.left, left - 17, top + height / 2 - 17),
+              handle(
+                _CropHandle.right,
+                left + width - 17,
+                top + height / 2 - 17,
+              ),
+            ],
             moveButton,
           ],
         );
