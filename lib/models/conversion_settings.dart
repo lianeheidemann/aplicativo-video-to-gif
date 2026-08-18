@@ -7,49 +7,43 @@ import 'video_info.dart';
 /// o arquivo. Essa é a troca central entre qualidade e peso no formato GIF.
 enum DitherMode {
   /// Sem pontilhado. Menor arquivo, mas gradientes ficam com faixas visíveis.
-  none('none', 'Sem pontilhado', 'Arquivo menor, pode listrar céu e sombras'),
+  none('none', 'Sem pontilhado'),
 
   /// Padrão ordenado grosseiro. Bom meio-termo puxando para leve.
-  bayer3('bayer:bayer_scale=3', 'Leve', 'Textura sutil, arquivo enxuto'),
+  bayer3('bayer:bayer_scale=3', 'Leve'),
 
   /// Padrão ordenado fino. Recomendado para a maioria dos vídeos.
-  bayer5('bayer:bayer_scale=5', 'Equilibrado', 'Melhor relação qualidade/peso'),
+  bayer5('bayer:bayer_scale=5', 'Equilibrado'),
 
   /// Difusão de erro. Melhor gradiente, arquivo bem maior.
-  sierra('sierra2_4a', 'Alta', 'Gradientes suaves, arquivo bem maior'),
+  sierra('sierra2_4a', 'Alta'),
 
   /// Difusão clássica. A mais pesada.
-  floydSteinberg(
-    'floyd_steinberg',
-    'Máxima',
-    'Qualidade máxima de cor, arquivo mais pesado',
-  );
+  floydSteinberg('floyd_steinberg', 'Máxima');
 
-  const DitherMode(this.ffmpegValue, this.label, this.description);
+  const DitherMode(this.ffmpegValue, this.label);
 
   final String ffmpegValue;
   final String label;
-  final String description;
 }
 
 /// Estratégia de construção da paleta de cores.
 enum PaletteMode {
   /// Uma paleta única para o GIF inteiro, calculada com todos os quadros.
   /// Mais leve e estável; pode errar a cor se a cena mudar muito.
-  global('full', 'Paleta única', 'Mais leve, ideal para uma cena só'),
+  global('full', 'Paleta única'),
 
   /// Prioriza as áreas que se movem ao escolher as cores.
   /// Bom quando o fundo é estático e só um objeto se mexe.
-  movement('diff', 'Focada no movimento', 'Boa para fundo parado'),
+  movement('diff', 'Focada no movimento'),
 
   /// Uma paleta nova por quadro. Melhor cor, arquivo bem maior.
-  perFrame('single', 'Paleta por quadro', 'Melhor cor, arquivo maior');
+  perFrame('single', 'Paleta por quadro');
 
-  const PaletteMode(this.statsMode, this.label, this.description);
+  const PaletteMode(this.statsMode, this.label);
 
   final String statsMode;
   final String label;
-  final String description;
 }
 
 /// Recorte em pixels do vídeo já rotacionado (coordenadas de exibição).
