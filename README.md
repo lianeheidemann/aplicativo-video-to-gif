@@ -200,15 +200,15 @@ on any device.
 To cut a new version:
 
 ```bash
-git tag v1.1.4
-git push origin v1.1.4
+git tag v1.1.5
+git push origin v1.1.5
 ```
 
 The `.github/workflows/release.yml` workflow builds, names and publishes
 the files on its own (it can also be triggered manually from the Actions
 tab).
 
-The tag must match the `version` in `pubspec.yaml` (currently `1.1.4+4`).
+The tag must match the `version` in `pubspec.yaml` (currently `1.1.5+5`).
 The number after the `+` is Android's `versionCode` and **must increase**
 with every submission to the Play Store — otherwise the upload is
 rejected.

@@ -940,16 +940,32 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   /// Interpreta o texto digitado no campo de largura e aplica, se válido.
+  /// Avisa quando o valor é ajustado por passar dos limites do vídeo.
   void _applyCropWidth(String value) {
     final parsed = int.tryParse(value.trim());
     if (parsed == null) return;
+    if (parsed > _video.width) {
+      _showMessage(
+        'Largura máxima é ${_video.width}px (tamanho do vídeo original).',
+      );
+    } else if (parsed < 2) {
+      _showMessage('A largura mínima é 2px.');
+    }
     _setCropWidth(parsed);
   }
 
   /// Interpreta o texto digitado no campo de altura e aplica, se válido.
+  /// Avisa quando o valor é ajustado por passar dos limites do vídeo.
   void _applyCropHeight(String value) {
     final parsed = int.tryParse(value.trim());
     if (parsed == null) return;
+    if (parsed > _video.height) {
+      _showMessage(
+        'Altura máxima é ${_video.height}px (tamanho do vídeo original).',
+      );
+    } else if (parsed < 2) {
+      _showMessage('A altura mínima é 2px.');
+    }
     _setCropHeight(parsed);
   }
 
