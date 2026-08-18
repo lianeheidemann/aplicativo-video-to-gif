@@ -171,30 +171,6 @@ class _ResultPageState extends State<ResultPage> {
                     result.formattedSize,
                     warn: result.bytes > widget.video.fileSizeBytes,
                   ),
-                  if (result.bytes > widget.video.fileSizeBytes) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 15,
-                          color: const Color(0xFFE6A15D),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'O GIF ficou maior que o vídeo original. GIF é um '
-                            'formato menos eficiente que vídeo — comum em '
-                            'cenas com muito movimento.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
                   _row(
                     'Dimensões',
                     '${result.width}×${result.height} px',
