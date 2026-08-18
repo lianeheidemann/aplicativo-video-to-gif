@@ -1184,6 +1184,7 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(height: 12),
           _collapsibleSubsection(
             label: 'Suavização de cor',
+            subtitle: _settings.dither.label,
             expanded: _ditherExpanded,
             onToggle: () => setState(() => _ditherExpanded = !_ditherExpanded),
             child: OptionChips<DitherMode>(
@@ -1196,6 +1197,7 @@ class _EditorPageState extends State<EditorPage> {
           const SizedBox(height: 8),
           _collapsibleSubsection(
             label: 'Paleta',
+            subtitle: _settings.palette.label,
             expanded: _paletteExpanded,
             onToggle: () =>
                 setState(() => _paletteExpanded = !_paletteExpanded),
@@ -1247,9 +1249,11 @@ class _EditorPageState extends State<EditorPage> {
 
   /// Cabeçalho recolhível de uma subseção (usado em "Suavização de cor" e
   /// "Paleta", dentro de "Qualidade das cores"): toca no rótulo para
-  /// mostrar ou esconder o conteúdo abaixo, que começa recolhido.
+  /// mostrar ou esconder o conteúdo abaixo, que começa recolhido. O
+  /// [subtitle] mostra a opção selecionada mesmo com a subseção fechada.
   Widget _collapsibleSubsection({
     required String label,
+    String? subtitle,
     required bool expanded,
     required VoidCallback onToggle,
     required Widget child,
@@ -1265,7 +1269,21 @@ class _EditorPageState extends State<EditorPage> {
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
-                Expanded(child: Text(label, style: theme.textTheme.bodySmall)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: theme.textTheme.bodySmall),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 Icon(
                   expanded
                       ? Icons.expand_less_rounded
