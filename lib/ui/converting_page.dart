@@ -137,7 +137,6 @@ class _ConvertingPageState extends State<ConvertingPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          '${widget.estimate.frames} quadros · '
           '${widget.estimate.width}×${widget.estimate.height} px\n'
           'Peso previsto: ${widget.estimate.formatted}',
           textAlign: TextAlign.center,
