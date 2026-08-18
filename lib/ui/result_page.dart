@@ -145,29 +145,6 @@ class _ResultPageState extends State<ResultPage> {
                       SizeEstimate.formatBytes(widget.video.fileSizeBytes),
                     ),
                     _row('Previsto', widget.estimate.formatted),
-                    if (widget.estimate.confidence !=
-                        EstimateConfidence.calibrated) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            size: 15,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              widget.estimate.confidence.explanation,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
                     _row(
                       'Convertido',
                       result.formattedSize,

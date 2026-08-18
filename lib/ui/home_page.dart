@@ -168,9 +168,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Funciona com MP4, MOV, AVI, MKV, WEBM e 3GP.\n'
-                  'Tudo acontece no seu aparelho: nenhum vídeo é enviado '
-                  'para a internet.',
+                  'Funciona com MP4, MOV, AVI, MKV, WEBM e 3GP.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,

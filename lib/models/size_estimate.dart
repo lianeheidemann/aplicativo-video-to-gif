@@ -18,15 +18,6 @@ extension EstimateConfidenceLabel on EstimateConfidence {
     EstimateConfidence.calibrated => 'Estimativa medida',
   };
 
-  String get explanation => switch (this) {
-    EstimateConfidence.rough || EstimateConfidence.fromSource =>
-      'Baseada em um vídeo típico. Toque em "Medir de verdade" para um '
-          'número preciso.',
-    EstimateConfidence.calibrated =>
-      'Medida codificando um trecho curto deste vídeo com estas mesmas '
-          'configurações.',
-  };
-
   /// Margem de erro aplicada para montar a faixa mínimo–máximo.
   double get relativeMargin => switch (this) {
     EstimateConfidence.rough => 0.55,
