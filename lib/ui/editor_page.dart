@@ -714,7 +714,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   /// Seção de formato/recorte: presets de proporção e, quando há recorte
-  /// ativo, os campos numéricos e sliders de posição da janela.
+  /// ativo, os campos numéricos da janela.
   Widget _aspectSection() {
     final crop = _settings.crop;
     final visiblePresets = <AspectPreset>[
@@ -752,38 +752,6 @@ class _EditorPageState extends State<EditorPage> {
               _cropSizeInputs(crop),
               const SizedBox(height: 12),
             ],
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.open_with_rounded,
-                    size: 19,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _aspect == _customAspectPreset
-                          ? 'Segure uma das quatro bolinhas brancas da moldura e arraste para alterar largura e altura.'
-                          : 'Segure uma das quatro bolinhas brancas da moldura e arraste. A proporção ${_aspect.label} será mantida.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            _cropPositionControls(crop),
-            const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -992,66 +960,6 @@ class _EditorPageState extends State<EditorPage> {
     }
 
     _update(_settings.copyWith(crop: _cropAroundCenter(w, h, around: crop)));
-  }
-
-  /// Sliders para mover a janela de recorte horizontal/verticalmente,
-  /// mostrados só quando sobra espaço de movimento em cada eixo.
-  Widget _cropPositionControls(CropRect crop) {
-    final horizontalRoom = _video.width - crop.width;
-    final verticalRoom = _video.height - crop.height;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Posição da janela',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'As barras abaixo movem a janela; o tamanho é alterado somente pelas bolinhas de canto na prévia.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (horizontalRoom > 0) ...[
-          _subLabel('Posição horizontal'),
-          Slider(
-            min: 0,
-            max: horizontalRoom.toDouble(),
-            value: crop.x.clamp(0, horizontalRoom).toDouble(),
-            onChanged: (value) {
-              _update(
-                _settings.copyWith(crop: crop.copyWith(x: value.round())),
-              );
-            },
-          ),
-        ],
-        if (verticalRoom > 0) ...[
-          _subLabel('Posição vertical'),
-          Slider(
-            min: 0,
-            max: verticalRoom.toDouble(),
-            value: crop.y.clamp(0, verticalRoom).toDouble(),
-            onChanged: (value) {
-              _update(
-                _settings.copyWith(crop: crop.copyWith(y: value.round())),
-              );
-            },
-          ),
-        ],
-        if (horizontalRoom <= 0 && verticalRoom <= 0)
-          Text(
-            'A janela ocupa todo o vídeo.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-      ],
-    );
   }
 
   /// Recentraliza o recorte no tamanho padrão do preset atual.
