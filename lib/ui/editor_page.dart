@@ -784,7 +784,9 @@ class _EditorPageState extends State<EditorPage> {
     return LabeledSection(
       icon: Icons.crop_rounded,
       title: 'Formato da janela',
-      value: _aspect.label,
+      value: _aspect.ratio == null
+          ? '${_video.width}×${_video.height}'
+          : _aspect.label,
       originalValue: _ratioLabel(_video.width, _video.height),
       hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
       child: Column(
