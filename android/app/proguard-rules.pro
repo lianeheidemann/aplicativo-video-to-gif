@@ -8,6 +8,12 @@
 -keep class io.flutter.plugin.** { *; }
 -keep class io.flutter.embedding.** { *; }
 -dontwarn io.flutter.embedding.**
+-dontwarn android.**
+
+# Regra oficial do Flutter: evita que o R8 remova implementações de plugins
+# registradas dinamicamente pelo embedding.
+-if class * implements io.flutter.embedding.engine.plugins.FlutterPlugin
+-keep,allowshrinking,allowobfuscation class <1>
 
 # androidx.window (vem junto com o Flutter, para telas dobráveis) referencia
 # classes de extensão que só existem em aparelhos de alguns fabricantes.

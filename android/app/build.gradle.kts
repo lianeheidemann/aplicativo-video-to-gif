@@ -86,6 +86,10 @@ android {
 
             isMinifyEnabled = true
             isShrinkResources = true
+            // O plugin do Flutter adiciona primeiro um caminho intermediário
+            // inválido para o arquivo padrão no AGP 9.1. Limpe a lista antes
+            // de registrar as duas configurações válidas abaixo.
+            proguardFiles.clear()
             proguardFiles(
                 // Com a DSL legada exigida pelo Flutter 3.47, o AGP 9.1
                 // resolve o arquivo padrão para um intermediário que não é
