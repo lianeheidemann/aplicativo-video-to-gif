@@ -58,6 +58,8 @@ class _EditorPageState extends State<EditorPage> {
   bool _measuring = false;
   bool _openingConversion = false;
   AspectPreset _aspect = AspectPreset.presets.first;
+  bool _ditherExpanded = false;
+  bool _paletteExpanded = false;
 
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
@@ -1185,21 +1187,31 @@ class _EditorPageState extends State<EditorPage> {
             },
             onSelected: (value) => _update(_settings.copyWith(colors: value)),
           ),
-          const SizedBox(height: 18),
-          _subLabel('Suavização de cor · ${_settings.dither.description}'),
-          OptionChips<DitherMode>(
-            options: DitherMode.values,
-            selected: _settings.dither,
-            labelBuilder: (d) => d.label,
-            onSelected: (d) => _update(_settings.copyWith(dither: d)),
+          const SizedBox(height: 12),
+          _collapsibleSubsection(
+            label: 'Suavização de cor · ${_settings.dither.description}',
+            expanded: _ditherExpanded,
+            onToggle: () =>
+                setState(() => _ditherExpanded = !_ditherExpanded),
+            child: OptionChips<DitherMode>(
+              options: DitherMode.values,
+              selected: _settings.dither,
+              labelBuilder: (d) => d.label,
+              onSelected: (d) => _update(_settings.copyWith(dither: d)),
+            ),
           ),
-          const SizedBox(height: 18),
-          _subLabel('Paleta · ${_settings.palette.description}'),
-          OptionChips<PaletteMode>(
-            options: PaletteMode.values,
-            selected: _settings.palette,
-            labelBuilder: (p) => p.label,
-            onSelected: (p) => _update(_settings.copyWith(palette: p)),
+          const SizedBox(height: 8),
+          _collapsibleSubsection(
+            label: 'Paleta · ${_settings.palette.description}',
+            expanded: _paletteExpanded,
+            onToggle: () =>
+                setState(() => _paletteExpanded = !_paletteExpanded),
+            child: OptionChips<PaletteMode>(
+              options: PaletteMode.values,
+              selected: _settings.palette,
+              labelBuilder: (p) => p.label,
+              onSelected: (p) => _update(_settings.copyWith(palette: p)),
+            ),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
@@ -1240,14 +1252,44 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Rótulo pequeno e discreto acima de um grupo de chips.
-  Widget _subLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-    ),
-  );
+  /// Cabeçalho recolhível de uma subseção (usado em "Suavização de cor" e
+  /// "Paleta", dentro de "Qualidade das cores"): toca no rótulo para
+  /// mostrar ou esconder o conteúdo abaixo, que começa recolhido.
+  Widget _collapsibleSubsection({
+    required String label,
+    required bool expanded,
+    required VoidCallback onToggle,
+    required Widget child,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(label, style: theme.textTheme.bodySmall),
+                ),
+                Icon(
+                  expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (expanded) ...[const SizedBox(height: 8), child],
+      ],
+    );
+  }
 
   /// Abre a folha inferior explicando o que deixa o GIF mais pesado.
   void _showHelp() {
