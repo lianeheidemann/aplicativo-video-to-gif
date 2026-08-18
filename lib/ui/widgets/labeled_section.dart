@@ -66,7 +66,7 @@ class LabeledSection extends StatelessWidget {
                   if (originalValue != null) ...[
                     Flexible(
                       child: Text(
-                        'Original: ${originalValue!}',
+                        originalValue!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
