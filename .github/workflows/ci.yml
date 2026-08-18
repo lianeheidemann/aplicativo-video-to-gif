@@ -48,6 +48,12 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
+    # Necessário para o setup-gradle enviar o grafo de dependências (ver
+    # passo "Configurar o Gradle" abaixo). Em PRs de forks o GitHub força o
+    # token a somente-leitura mesmo com isso declarado, então o envio já
+    # fica restrito a push por conta própria (condição `if` no passo).
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +65,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      # Valida o checksum do gradle-wrapper.jar contra os hashes oficiais da
+      # Gradle (protege contra um wrapper adulterado rodar código arbitrário
+      # no runner) e, só em push, envia o grafo de dependências resolvido
+      # pelo Gradle para o GitHub — sem isso, as libs Android/Kotlin/FFmpeg
+      # nativas ficam de fora dos alertas do Dependabot, que só enxerga o
+      # pubspec.yaml sozinho.
+      - name: Configurar o Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          dependency-graph: ${{ github.event_name == 'push' && 'generate-and-submit' || 'disabled' }}
 
       - uses: subosito/flutter-action@v2
         with:
