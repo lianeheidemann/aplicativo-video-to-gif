@@ -70,12 +70,15 @@ class CropRect {
 
   /// Maior recorte centralizado com a proporção [ratio] que cabe no vídeo.
   factory CropRect.centered(VideoInfo video, double ratio) {
+    // Tenta usar a largura inteira do vídeo e calcula a altura correspondente;
+    // se não couber, faz o caminho inverso a partir da altura.
     var w = video.width;
     var h = (w / ratio).round();
     if (h > video.height) {
       h = video.height;
       w = (h * ratio).round();
     }
+    // FFmpeg exige dimensões pares para crop/scale.
     w = w - (w % 2);
     h = h - (h % 2);
     return CropRect(
@@ -86,6 +89,7 @@ class CropRect {
     );
   }
 
+  /// Cria uma cópia substituindo apenas os campos informados.
   CropRect copyWith({int? x, int? y, int? width, int? height}) => CropRect(
     x: x ?? this.x,
     y: y ?? this.y,
@@ -147,18 +151,24 @@ class ConversionSettings {
   static const primaryColorOptions = <int>[64, 128, 256];
   static const speedOptions = <double>[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
+  /// Duração do trecho selecionado no vídeo original, antes de aplicar a
+  /// velocidade.
   double get sourceDurationSeconds {
     final d = endSeconds - startSeconds;
     return d < 0 ? 0 : d;
   }
 
+  /// Duração final do GIF, já considerando a velocidade escolhida.
   double get outputDurationSeconds => sourceDurationSeconds / speed;
 
+  /// Quantidade de quadros que o GIF final vai ter (mínimo de 1).
   int get frameCount {
     final n = (outputDurationSeconds * fps).round();
     return n < 1 ? 1 : n;
   }
 
+  /// Largura/altura finais do GIF, a partir da largura alvo e mantendo a
+  /// proporção da área recortada (ou do vídeo inteiro, sem recorte).
   (int, int) outputDimensions(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     final srcHeight = crop?.height ?? video.height;
@@ -168,11 +178,14 @@ class ConversionSettings {
     if (w < 2) w = 2;
     var h = (w * srcHeight / srcWidth).round();
 
+    // FFmpeg exige dimensões pares.
     w -= w % 2;
     h -= h % 2;
     return (w < 2 ? 2 : w, h < 2 ? 2 : h);
   }
 
+  /// Quanto a imagem é reduzida em relação ao tamanho de origem (recortado),
+  /// usado pelo estimador de tamanho para ponderar o efeito da escala.
   double scaleRatio(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     if (srcWidth <= 0) return 1;
@@ -180,6 +193,8 @@ class ConversionSettings {
     return (w / srcWidth).clamp(0.05, 1.0).toDouble();
   }
 
+  /// Cria uma cópia substituindo apenas os campos informados.
+  /// [clearCrop] remove o recorte mesmo que [crop] não seja passado.
   ConversionSettings copyWith({
     double? startSeconds,
     double? endSeconds,
@@ -207,6 +222,9 @@ class ConversionSettings {
     );
   }
 
+  /// Configurações iniciais sugeridas para um vídeo recém-carregado: corta
+  /// em até 10 segundos e escolhe a maior largura de até 480px que caiba
+  /// no vídeo original.
   factory ConversionSettings.recommendedFor(VideoInfo video) {
     const maxSeconds = 10.0;
     final end = video.durationSeconds < maxSeconds

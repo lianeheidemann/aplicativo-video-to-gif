@@ -6,8 +6,15 @@ const _seed = Color(0xFFC9A8FF);
 const _darkBackground = Color(0xFF101014);
 const _darkCard = Color(0xFF1A191F);
 
+/// Monta o ThemeData do app para o modo claro ou escuro.
+///
+/// A partir da cor semente [_seed], gera um ColorScheme via Material 3 e,
+/// no modo escuro, substitui as cores de superfície por tons próprios
+/// (mais neutros que os gerados automaticamente).
 ThemeData buildTheme(Brightness brightness) {
   final base = ColorScheme.fromSeed(seedColor: _seed, brightness: brightness);
+  // No escuro, troca as superfícies geradas pelo ColorScheme.fromSeed por
+  // tons neutros definidos à mão, mantendo a cor primária.
   final scheme = brightness == Brightness.dark
       ? base.copyWith(
           primary: _seed,

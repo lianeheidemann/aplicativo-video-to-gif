@@ -117,7 +117,8 @@ class LabeledSection extends StatelessWidget {
   }
 }
 
-/// Opções adaptativas com seleção destacada e check.
+/// Lista de opções em chips selecionáveis (só uma ativa por vez), com um
+/// ícone de check na opção selecionada.
 class OptionChips<T> extends StatelessWidget {
   const OptionChips({
     super.key,

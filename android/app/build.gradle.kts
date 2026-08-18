@@ -4,6 +4,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
+    // O suporte a Kotlin embutido do AGP 9 (built-in Kotlin) está desligado
+    // via android.builtInKotlin=false em gradle.properties — o Flutter Gradle
+    // Plugin ainda não suporta esse modo. Por isso continuamos aplicando o
+    // plugin "kotlin-android" aqui.
     id("kotlin-android")
     // O plugin do Flutter tem que vir DEPOIS dos plugins de Android e Kotlin.
     id("dev.flutter.flutter-gradle-plugin")

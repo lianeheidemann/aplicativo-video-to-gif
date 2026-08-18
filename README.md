@@ -28,7 +28,7 @@ spend time converting it**.
 > All conversion runs on-device with FFmpeg. The app has no internet
 > permission.
 >
-> **[⬇ Download the APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
+> **[⬇ Download the APK](https://github.com/lianeheidemann/video-to-gif/releases/latest)**
 > — installs straight onto Android, no store needed.
 
 <br>
@@ -189,7 +189,7 @@ problems with FFmpeg's native libraries.
 ## Download the APK
 
 Every published version becomes a
-[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
+[Release](https://github.com/lianeheidemann/video-to-gif/releases)
 with ready-to-install APKs — start with `arm64-v8a`, which covers
 practically every current Android phone. `universal` is larger, but works
 on any device.
@@ -205,7 +205,7 @@ The `.github/workflows/release.yml` workflow builds, names and publishes
 the files on its own (it can also be triggered manually from the Actions
 tab).
 
-The tag must match the `version` in `pubspec.yaml` (currently `1.1.2+2`).
+The tag must match the `version` in `pubspec.yaml` (currently `1.1.4+4`).
 The number after the `+` is Android's `versionCode` and **must increase**
 with every submission to the Play Store — otherwise the upload is
 rejected.

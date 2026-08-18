@@ -95,9 +95,11 @@ class SizeEstimate {
   final EstimateConfidence confidence;
   final double durationSeconds;
 
+  /// Extremo inferior da faixa mínimo–máximo mostrada ao usuário.
   int get lowBytes =>
       (bytes * (1 - confidence.relativeMargin)).round().clamp(0, bytes).toInt();
 
+  /// Extremo superior da faixa mínimo–máximo mostrada ao usuário.
   int get highBytes => (bytes * (1 + confidence.relativeMargin)).round();
 
   SizeVerdict get verdict => SizeVerdict.forBytes(bytes);
@@ -109,8 +111,10 @@ class SizeEstimate {
   double get bytesPerSecond =>
       durationSeconds <= 0 ? 0 : bytes / durationSeconds;
 
+  /// Se o extremo superior da estimativa cabe no limite de [target].
   bool fitsIn(ShareTarget target) => highBytes <= target.limitBytes;
 
+  /// Formata bytes como B, KB ou MB, com uma casa decimal só abaixo de 10MB.
   static String formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {

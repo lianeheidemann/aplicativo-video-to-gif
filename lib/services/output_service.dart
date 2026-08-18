@@ -33,6 +33,7 @@ class OutputService {
     }
   }
 
+  /// Abre a folha de compartilhamento do sistema com o GIF anexado.
   Future<void> share(File gif) async {
     await SharePlus.instance.share(
       ShareParams(

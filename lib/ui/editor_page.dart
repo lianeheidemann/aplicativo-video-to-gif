@@ -18,8 +18,12 @@ const _customAspectPreset = AspectPreset(
   hint: 'Largura e altura livres',
 );
 
+/// As quatro alças de canto usadas para redimensionar a janela de recorte.
 enum _CropHandle { topLeft, topRight, bottomLeft, bottomRight }
 
+/// Tela principal de edição: prévia do vídeo, corte de duração, recorte de
+/// área, velocidade, resolução, FPS/cores e o painel de estimativa de
+/// tamanho que leva à conversão.
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -48,8 +52,15 @@ class _EditorPageState extends State<EditorPage> {
   bool _openingConversion = false;
   AspectPreset _aspect = AspectPreset.presets.first;
 
+  final _widthController = TextEditingController();
+  final _heightController = TextEditingController();
+  final _widthFocus = FocusNode();
+  final _heightFocus = FocusNode();
+
   VideoInfo get _video => widget.video;
 
+  /// Estimativa de tamanho recalculada a cada mudança de configuração,
+  /// usando o perfil de complexidade mais recente (medido ou aproximado).
   SizeEstimate get _estimate => SizeEstimator.estimate(
     settings: _settings,
     video: _video,
@@ -62,6 +73,9 @@ class _EditorPageState extends State<EditorPage> {
     _initPlayer();
   }
 
+  /// Inicializa o player de vídeo para a prévia. Se o codec não for
+  /// suportado pela plataforma, marca [_previewFailed] e deixa a conversão
+  /// funcionar normalmente (que usa o FFmpeg, não este player).
   Future<void> _initPlayer() async {
     final controller = VideoPlayerController.file(File(_video.path));
     try {
@@ -82,19 +96,27 @@ class _EditorPageState extends State<EditorPage> {
   @override
   void dispose() {
     _player?.dispose();
+    _widthController.dispose();
+    _heightController.dispose();
+    _widthFocus.dispose();
+    _heightFocus.dispose();
     super.dispose();
   }
 
+  /// Substitui as configurações atuais e reconstrói a tela.
   void _update(ConversionSettings next) {
     setState(() => _settings = next);
   }
 
+  /// Move o player de prévia para o instante [seconds].
   Future<void> _seekPreview(double seconds) async {
     final player = _player;
     if (player == null || !player.value.isInitialized) return;
     await player.seekTo(Duration(milliseconds: (seconds * 1000).round()));
   }
 
+  /// Roda a calibração real (amostras codificadas pelo FFmpeg) e atualiza
+  /// o perfil de complexidade usado nas estimativas.
   Future<void> _measure() async {
     setState(() => _measuring = true);
     try {
@@ -116,6 +138,8 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
+  /// Degrada automaticamente as configurações até o GIF caber no limite de
+  /// [target] (com 10% de folga), usada pelos chips de compatibilidade.
   void _fitTo(ShareTarget target) {
     final fitted = SizeEstimator.fitToTarget(
       settings: _settings,
@@ -127,12 +151,15 @@ class _EditorPageState extends State<EditorPage> {
     _showMessage('Ajustado para caber no ${target.name}.');
   }
 
+  /// Mostra uma snackbar simples, substituindo qualquer uma já visível.
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Pausa a prévia e navega para a tela de conversão com as configurações
+  /// atuais.
   Future<void> _convert() async {
     if (_openingConversion) return;
     setState(() => _openingConversion = true);
@@ -203,6 +230,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Área de prévia: vídeo (ou aviso de codec incompatível), overlay de
+  /// recorte arrastável e linha do tempo com o trecho selecionado.
   Widget _preview() {
     final theme = Theme.of(context);
     final player = _player;
@@ -306,6 +335,7 @@ class _EditorPageState extends State<EditorPage> {
                   video: _video,
                   crop: _settings.crop,
                   onResize: _resizeCropFromHandle,
+                  onMove: _moveCropFromHandle,
                 ),
               ],
             ),
@@ -316,6 +346,9 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Converte o arraste de uma alça (em pixels da prévia exibida) para
+  /// pixels do vídeo e recalcula o recorte, livre ou travado à proporção
+  /// selecionada.
   void _resizeCropFromHandle(
     _CropHandle handle,
     Offset displayDelta,
@@ -344,6 +377,34 @@ class _EditorPageState extends State<EditorPage> {
     _update(_settings.copyWith(crop: next));
   }
 
+  /// Converte o arraste do botão de mover (em pixels da prévia exibida)
+  /// para pixels do vídeo e desloca a janela de recorte, sem sair da área
+  /// do vídeo.
+  void _moveCropFromHandle(Offset displayDelta, Size previewSize) {
+    final crop = _settings.crop;
+    if (crop == null || previewSize.width <= 0 || previewSize.height <= 0) {
+      return;
+    }
+
+    final dx = displayDelta.dx * _video.width / previewSize.width;
+    final dy = displayDelta.dy * _video.height / previewSize.height;
+
+    final maxX = (_video.width - crop.width).clamp(0, _video.width);
+    final maxY = (_video.height - crop.height).clamp(0, _video.height);
+    final x = (crop.x + dx.round()).clamp(0, maxX);
+    final y = (crop.y + dy.round()).clamp(0, maxY);
+
+    if (x == crop.x && y == crop.y) return;
+
+    _update(
+      _settings.copyWith(
+        crop: crop.copyWith(x: x, y: y),
+      ),
+    );
+  }
+
+  /// Redimensiona o recorte movendo só o canto arrastado, sem travar a
+  /// proporção (usado no preset "Personalizado").
   CropRect _resizeFreeCrop(
     CropRect crop,
     _CropHandle handle,
@@ -394,6 +455,9 @@ class _EditorPageState extends State<EditorPage> {
     return CropRect(x: x, y: y, width: width, height: height);
   }
 
+  /// Redimensiona o recorte mantendo a proporção [ratio] fixa: o canto
+  /// oposto ao que foi arrastado fica ancorado, e a escala do arraste em
+  /// ambos os eixos é combinada para decidir o novo tamanho.
   CropRect _resizeLockedCrop(
     CropRect crop,
     _CropHandle handle,
@@ -482,6 +546,9 @@ class _EditorPageState extends State<EditorPage> {
     return CropRect(x: x, y: y, width: evenWidth, height: evenHeight);
   }
 
+  /// Barra de progresso do vídeo com o trecho selecionado destacado; toca
+  /// em qualquer ponto para pular a prévia para lá, e volta ao início do
+  /// trecho automaticamente quando a reprodução passa do fim selecionado.
   Widget _previewTimeline(VideoPlayerController player) {
     return AnimatedBuilder(
       animation: player,
@@ -603,6 +670,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção com o slider de intervalo (início/fim) do trecho a converter.
   Widget _durationSection() {
     final start = _settings.startSeconds;
     final end = _settings.endSeconds;
@@ -661,6 +729,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção de formato/recorte: presets de proporção e, quando há recorte
+  /// ativo, os campos numéricos e sliders de posição da janela.
   Widget _aspectSection() {
     final crop = _settings.crop;
     final visiblePresets = <AspectPreset>[
@@ -692,6 +762,8 @@ class _EditorPageState extends State<EditorPage> {
           if (crop != null) ...[
             const SizedBox(height: 18),
             _cropSizeSummary(crop),
+            const SizedBox(height: 12),
+            _cropSizeInputs(crop),
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
@@ -739,6 +811,9 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Aplica o preset de proporção escolhido: cria um recorte customizado,
+  /// remove o recorte ("Original") ou centraliza um recorte na proporção
+  /// fixa selecionada.
   void _selectAspectPreset(AspectPreset preset) {
     setState(() {
       _aspect = preset;
@@ -761,6 +836,7 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
+  /// Recorte inicial do preset "Personalizado": 80% do vídeo, centralizado.
   CropRect _defaultCustomCrop() {
     final width = _even(((_video.width * 0.8).round()).clamp(2, _video.width));
     final height = _even(
@@ -769,6 +845,7 @@ class _EditorPageState extends State<EditorPage> {
     return _cropAroundCenter(width, height);
   }
 
+  /// Faixa de destaque mostrando as dimensões atuais da janela de recorte.
   Widget _cropSizeSummary(CropRect crop) {
     final theme = Theme.of(context);
     return Container(
@@ -809,6 +886,113 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Campos numéricos de largura/altura do recorte, sincronizados com o
+  /// estado atual enquanto não estão em foco (para não atrapalhar a
+  /// digitação do usuário).
+  Widget _cropSizeInputs(CropRect crop) {
+    if (!_widthFocus.hasFocus) _syncSizeField(_widthController, crop.width);
+    if (!_heightFocus.hasFocus) _syncSizeField(_heightController, crop.height);
+
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _widthController,
+            focusNode: _widthFocus,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Largura (px)',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: _applyCropWidth,
+            onTapOutside: (_) => _applyCropWidth(_widthController.text),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: _heightController,
+            focusNode: _heightFocus,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Altura (px)',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: _applyCropHeight,
+            onTapOutside: (_) => _applyCropHeight(_heightController.text),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Atualiza o texto de um campo sem mexer se já estiver correto, evitando
+  /// perder a posição do cursor à toa.
+  void _syncSizeField(TextEditingController controller, int value) {
+    final text = value.toString();
+    if (controller.text == text) return;
+    controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  /// Interpreta o texto digitado no campo de largura e aplica, se válido.
+  void _applyCropWidth(String value) {
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null) return;
+    _setCropWidth(parsed);
+  }
+
+  /// Interpreta o texto digitado no campo de altura e aplica, se válido.
+  void _applyCropHeight(String value) {
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null) return;
+    _setCropHeight(parsed);
+  }
+
+  /// Aplica uma nova largura ao recorte, ajustando a altura para manter a
+  /// proporção quando um preset fixo está selecionado.
+  void _setCropWidth(int width) {
+    final crop = _settings.crop;
+    if (crop == null) return;
+
+    final ratio = _aspect == _customAspectPreset ? null : _aspect.ratio;
+    var w = _even(width.clamp(2, _video.width));
+    int h;
+    if (ratio != null) {
+      h = _even((w / ratio).round().clamp(2, _video.height));
+      w = _even((h * ratio).round().clamp(2, _video.width));
+    } else {
+      h = crop.height;
+    }
+
+    _update(_settings.copyWith(crop: _cropAroundCenter(w, h, around: crop)));
+  }
+
+  /// Aplica uma nova altura ao recorte, ajustando a largura para manter a
+  /// proporção quando um preset fixo está selecionado.
+  void _setCropHeight(int height) {
+    final crop = _settings.crop;
+    if (crop == null) return;
+
+    final ratio = _aspect == _customAspectPreset ? null : _aspect.ratio;
+    var h = _even(height.clamp(2, _video.height));
+    int w;
+    if (ratio != null) {
+      w = _even((h * ratio).round().clamp(2, _video.width));
+      h = _even((w / ratio).round().clamp(2, _video.height));
+    } else {
+      w = crop.width;
+    }
+
+    _update(_settings.copyWith(crop: _cropAroundCenter(w, h, around: crop)));
+  }
+
+  /// Sliders para mover a janela de recorte horizontal/verticalmente,
+  /// mostrados só quando sobra espaço de movimento em cada eixo.
   Widget _cropPositionControls(CropRect crop) {
     final horizontalRoom = _video.width - crop.width;
     final verticalRoom = _video.height - crop.height;
@@ -867,6 +1051,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Recentraliza o recorte no tamanho padrão do preset atual.
   void _resetCurrentCrop() {
     if (_aspect == _customAspectPreset) {
       _update(_settings.copyWith(crop: _defaultCustomCrop()));
@@ -883,6 +1068,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Monta um [CropRect] com o tamanho dado, centralizado em [around] (ou
+  /// no centro do vídeo, se omitido), sem ultrapassar as bordas.
   CropRect _cropAroundCenter(int width, int height, {CropRect? around}) {
     var safeWidth = width.clamp(2, _video.width);
     var safeHeight = height.clamp(2, _video.height);
@@ -904,11 +1091,14 @@ class _EditorPageState extends State<EditorPage> {
     return CropRect(x: x, y: y, width: safeWidth, height: safeHeight);
   }
 
+  /// Arredonda para o número par mais próximo abaixo (mínimo 2), exigido
+  /// pelos filtros de crop/scale do FFmpeg.
   int _even(int value) {
     if (value <= 2) return 2;
     return value.isEven ? value : value - 1;
   }
 
+  /// Seção de velocidade de reprodução do GIF.
   Widget _speedSection() {
     return LabeledSection(
       icon: Icons.speed_rounded,
@@ -926,6 +1116,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção de resolução: só oferece larguras que cabem no vídeo original.
   Widget _resolutionSection() {
     final available = ConversionSettings.widthOptions
         .where((w) => w <= _video.width)
@@ -953,6 +1144,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção de quadros por segundo do GIF.
   Widget _fpsSection() {
     return LabeledSection(
       icon: Icons.animation_rounded,
@@ -970,6 +1162,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção de qualidade de cor: quantidade de cores, modo de dither, modo
+  /// de paleta e se o GIF deve repetir em loop.
   Widget _colorSection() {
     final colors = <int>{
       ...ConversionSettings.primaryColorOptions,
@@ -1027,6 +1221,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Linha "rótulo à esquerda, valor à direita" usada nos resumos de seção.
   Widget _metricRow(String label, String value) {
     final theme = Theme.of(context);
     return Padding(
@@ -1052,6 +1247,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Rótulo pequeno e discreto acima de um grupo de chips.
   Widget _subLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Align(
@@ -1060,6 +1256,7 @@ class _EditorPageState extends State<EditorPage> {
     ),
   );
 
+  /// Abre a folha inferior explicando o que deixa o GIF mais pesado.
   void _showHelp() {
     showModalBottomSheet<void>(
       context: context,
@@ -1069,6 +1266,7 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Formata segundos como "Ns" ou "Mm Ns" quando passa de um minuto.
   static String _formatSeconds(double seconds) {
     final minutes = seconds ~/ 60;
     final rest = seconds - minutes * 60;
@@ -1077,21 +1275,30 @@ class _EditorPageState extends State<EditorPage> {
         : '${rest.toStringAsFixed(1)}s';
   }
 
+  /// Formata a velocidade sem casas decimais desnecessárias (1 em vez de
+  /// 1.0, mas 1.5 continua com uma casa).
   static String _formatSpeed(double speed) =>
       speed == speed.roundToDouble() ? '${speed.round()}' : '$speed';
 }
 
+/// Desenha, sobre a prévia do vídeo, o véu escurecendo a área fora do
+/// recorte, a borda da janela e as alças arrastáveis (quatro cantos para
+/// redimensionar, mais um botão lateral para mover a janela inteira).
 class _CropOverlay extends StatelessWidget {
   const _CropOverlay({
     required this.video,
     required this.crop,
     required this.onResize,
+    required this.onMove,
   });
 
   final VideoInfo video;
   final CropRect? crop;
   final void Function(_CropHandle handle, Offset delta, Size previewSize)
   onResize;
+  final void Function(Offset delta, Size previewSize) onMove;
+
+  static const _handleBoxSize = 34.0;
 
   @override
   Widget build(BuildContext context) {
@@ -1109,35 +1316,83 @@ class _CropOverlay extends StatelessWidget {
         final height = rect.height * scaleY;
         const veil = Color(0x8C000000);
 
-        Widget handle(_CropHandle handle) {
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanUpdate: (details) =>
-                onResize(handle, details.delta, previewSize),
-            child: SizedBox(
-              width: 34,
-              height: 34,
-              child: Center(
-                child: Container(
-                  width: 15,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black54, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 4,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
+        // Mantém a bolinha inteira dentro da prévia, mesmo quando o canto da
+        // janela de recorte encosta na borda do vídeo — senão ela é cortada
+        // pelo clipe arredondado do preview e fica "escondida".
+        double clampLeft(double raw) =>
+            raw.clamp(0.0, previewSize.width - _handleBoxSize);
+        double clampTop(double raw) =>
+            raw.clamp(0.0, previewSize.height - _handleBoxSize);
+
+        // Constrói uma alça de canto arrastável na posição dada (já
+        // limitada para não sair da área visível da prévia).
+        Widget handle(_CropHandle handle, double rawLeft, double rawTop) {
+          return Positioned(
+            left: clampLeft(rawLeft),
+            top: clampTop(rawTop),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanUpdate: (details) =>
+                  onResize(handle, details.delta, previewSize),
+              child: SizedBox(
+                width: _handleBoxSize,
+                height: _handleBoxSize,
+                child: Center(
+                  child: Container(
+                    width: 15,
+                    height: 15,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black54, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           );
         }
+
+        // Botão para mover a janela inteira, ao lado dela — também travado
+        // dentro da área da prévia.
+        final moveLeft = clampLeft(left + width + 10);
+        final moveTop = clampTop(top + height / 2 - _handleBoxSize / 2);
+        final moveButton = Positioned(
+          left: moveLeft,
+          top: moveTop,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanUpdate: (details) => onMove(details.delta, previewSize),
+            child: Container(
+              width: _handleBoxSize,
+              height: _handleBoxSize,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.open_with_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        );
 
         return Stack(
           clipBehavior: Clip.none,
@@ -1183,26 +1438,15 @@ class _CropOverlay extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned(
-              left: left - 17,
-              top: top - 17,
-              child: handle(_CropHandle.topLeft),
+            handle(_CropHandle.topLeft, left - 17, top - 17),
+            handle(_CropHandle.topRight, left + width - 17, top - 17),
+            handle(_CropHandle.bottomLeft, left - 17, top + height - 17),
+            handle(
+              _CropHandle.bottomRight,
+              left + width - 17,
+              top + height - 17,
             ),
-            Positioned(
-              left: left + width - 17,
-              top: top - 17,
-              child: handle(_CropHandle.topRight),
-            ),
-            Positioned(
-              left: left - 17,
-              top: top + height - 17,
-              child: handle(_CropHandle.bottomLeft),
-            ),
-            Positioned(
-              left: left + width - 17,
-              top: top + height - 17,
-              child: handle(_CropHandle.bottomRight),
-            ),
+            moveButton,
           ],
         );
       },
@@ -1210,6 +1454,8 @@ class _CropOverlay extends StatelessWidget {
   }
 }
 
+/// Folha inferior explicativa: lista os fatores que mais pesam no tamanho
+/// do GIF, aberta pelo botão de ajuda na barra superior do editor.
 class _HelpSheet extends StatelessWidget {
   const _HelpSheet();
 

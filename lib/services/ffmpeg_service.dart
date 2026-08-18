@@ -14,6 +14,7 @@ import '../models/size_estimate.dart';
 import '../models/video_info.dart';
 import 'size_estimator.dart';
 
+/// Resultado de uma conversão bem-sucedida: o arquivo GIF e seus metadados.
 class ConversionResult {
   const ConversionResult({
     required this.file,
@@ -34,6 +35,8 @@ class ConversionResult {
   String get formattedSize => SizeEstimate.formatBytes(bytes);
 }
 
+/// Erro de uma operação do FFmpeg/FFprobe, com mensagem amigável em
+/// português e, opcionalmente, os logs brutos para depuração.
 class FfmpegException implements Exception {
   FfmpegException(this.message, {this.logs = ''});
 
@@ -62,6 +65,9 @@ class FfmpegService {
   // Metadados
   // ------------------------------------------------------------------
 
+  /// Lê os metadados do vídeo em [path] (dimensões, duração, fps, bitrate,
+  /// codec e rotação) usando o FFprobe. Lança [FfmpegException] se o
+  /// arquivo não existir, não puder ser lido ou não tiver faixa de vídeo.
   Future<VideoInfo> probe(String path) async {
     final file = File(path);
     if (!file.existsSync()) {
@@ -197,6 +203,8 @@ class FfmpegService {
     return parts.join(',');
   }
 
+  /// Monta os argumentos do FFmpeg para a passagem 1: gera o arquivo de
+  /// paleta de cores (PNG) a partir do trecho e filtros selecionados.
   List<String> _paletteGenArgs({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -220,6 +228,9 @@ class FfmpegService {
     ];
   }
 
+  /// Monta os argumentos do FFmpeg para a passagem 2: aplica a paleta
+  /// gerada na passagem 1 ao vídeo e grava o GIF final (ou uma amostra,
+  /// se [frameLimit] for informado).
   List<String> _paletteUseArgs({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -325,9 +336,13 @@ class FfmpegService {
     }
   }
 
+  /// Progresso (0–1) dado o tempo já codificado e o tempo total esperado.
   double _ratio(double ms, double totalMs) =>
       totalMs <= 0 ? 0 : (ms / totalMs).clamp(0.0, 1.0).toDouble();
 
+  /// Executa uma sessão do FFmpeg com os [arguments] dados, reportando
+  /// progresso via [onTimeMs] e resolvendo/rejeitando conforme o código de
+  /// retorno da sessão (sucesso, cancelamento ou falha).
   Future<void> _run(
     List<String> arguments, {
     required String step,
@@ -362,6 +377,7 @@ class FfmpegService {
     return completer.future;
   }
 
+  /// Sinaliza cancelamento e interrompe a sessão do FFmpeg em andamento.
   Future<void> cancel() async {
     _cancelled = true;
     final id = _activeSessionId;
@@ -513,6 +529,9 @@ class FfmpegService {
   // Miniatura para a prévia de recorte
   // ------------------------------------------------------------------
 
+  /// Extrai um único quadro do vídeo no instante [atSeconds] como JPEG,
+  /// usado para gerar a miniatura da tela de recorte. Retorna `null` se a
+  /// extração falhar.
   Future<File?> extractFrame({
     required VideoInfo video,
     required double atSeconds,
@@ -547,6 +566,7 @@ class FfmpegService {
     return file.existsSync() ? file : null;
   }
 
+  /// Apaga um arquivo temporário sem lançar erro se isso falhar.
   void _deleteQuietly(String path) {
     try {
       final file = File(path);

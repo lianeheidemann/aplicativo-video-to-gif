@@ -6,6 +6,8 @@ import '../models/video_info.dart';
 import '../services/ffmpeg_service.dart';
 import 'result_page.dart';
 
+/// Tela exibida durante a conversão: mostra a barra de progresso e navega
+/// para o [ResultPage] ao terminar, ou para uma tela de erro se falhar.
 class ConvertingPage extends StatefulWidget {
   const ConvertingPage({
     super.key,
@@ -35,6 +37,9 @@ class _ConvertingPageState extends State<ConvertingPage> {
     _start();
   }
 
+  /// Dispara a conversão assim que a tela é montada, atualizando
+  /// [_progress] a cada callback do FFmpeg e navegando para o resultado
+  /// ao concluir.
   Future<void> _start() async {
     try {
       final result = await _ffmpeg.convert(
@@ -68,6 +73,7 @@ class _ConvertingPageState extends State<ConvertingPage> {
     }
   }
 
+  /// Pede o cancelamento da conversão em andamento.
   Future<void> _cancel() async {
     setState(() => _cancelling = true);
     await _ffmpeg.cancel();
@@ -92,6 +98,8 @@ class _ConvertingPageState extends State<ConvertingPage> {
     );
   }
 
+  /// Círculo de progresso com percentual, resumo do GIF previsto e botão
+  /// de cancelar.
   Widget _progressView(ThemeData theme) {
     final percent = (_progress * 100).clamp(0, 100).round();
 
@@ -146,6 +154,7 @@ class _ConvertingPageState extends State<ConvertingPage> {
     );
   }
 
+  /// Mensagem de erro com botão para voltar e ajustar as configurações.
   Widget _errorView(ThemeData theme) {
     return Column(
       mainAxisSize: MainAxisSize.min,

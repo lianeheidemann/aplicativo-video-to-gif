@@ -5,6 +5,8 @@ import '../models/conversion_settings.dart';
 import '../services/ffmpeg_service.dart';
 import 'editor_page.dart';
 
+/// Tela inicial: apresenta o app e deixa o usuário escolher um vídeo para
+/// começar a edição.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -17,6 +19,8 @@ class _HomePageState extends State<HomePage> {
   bool _loading = false;
   String? _error;
 
+  /// Abre o seletor de arquivos, lê os metadados do vídeo escolhido com o
+  /// FFprobe e navega para o [EditorPage] com as configurações recomendadas.
   Future<void> _pickVideo() async {
     setState(() {
       _loading = true;

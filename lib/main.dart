@@ -10,6 +10,8 @@ void main() {
   runApp(const VideoToGifApp());
 }
 
+/// Widget raiz do app: configura o MaterialApp com os temas claro/escuro
+/// e define a HomePage como tela inicial.
 class VideoToGifApp extends StatelessWidget {
   const VideoToGifApp({super.key});
 

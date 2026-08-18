@@ -6,6 +6,8 @@ import '../services/ffmpeg_service.dart';
 import '../services/output_service.dart';
 import '../theme.dart';
 
+/// Tela final: exibe o GIF gerado, seu peso real (comparado à estimativa) e
+/// as ações de salvar na galeria ou compartilhar.
 class ResultPage extends StatefulWidget {
   const ResultPage({
     super.key,
@@ -28,6 +30,7 @@ class _ResultPageState extends State<ResultPage> {
   bool _saving = false;
   bool _saved = false;
 
+  /// Salva o GIF na galeria do aparelho e mostra o resultado num snackbar.
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -45,6 +48,7 @@ class _ResultPageState extends State<ResultPage> {
     }
   }
 
+  /// Mostra uma snackbar simples, substituindo qualquer uma já visível.
   void _message(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -177,6 +181,7 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
+  /// Linha "rótulo à esquerda, valor à direita" usada no card de detalhes.
   Widget _row(String label, String value) {
     final theme = Theme.of(context);
     return Padding(

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../models/size_estimate.dart';
 import '../../theme.dart';
 
+/// Painel final do editor: mostra a estimativa de peso do GIF, dicas de
+/// como reduzi-lo, compatibilidade com destinos comuns de compartilhamento
+/// e o botão de converter.
 class SizePanel extends StatelessWidget {
   const SizePanel({
     super.key,
@@ -212,12 +215,14 @@ class SizePanel extends StatelessWidget {
     );
   }
 
+  /// Rótulo curto do veredito, usado no selo ao lado do tamanho.
   static String _verdictLabel(SizeVerdict verdict) => switch (verdict) {
     SizeVerdict.light => 'Leve',
     SizeVerdict.good => 'Moderado',
     SizeVerdict.heavy || SizeVerdict.tooHeavy => 'Pesado',
   };
 
+  /// Mensagem explicativa mostrada abaixo da barra de impacto.
   static String _contextMessage(SizeVerdict verdict) => switch (verdict) {
     SizeVerdict.light =>
       'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
@@ -228,6 +233,8 @@ class SizePanel extends StatelessWidget {
   };
 }
 
+/// Barra "leve → moderado → pesado" com um marcador indicando onde o
+/// veredito atual cai.
 class _ImpactBar extends StatelessWidget {
   const _ImpactBar({required this.verdict});
 
@@ -235,6 +242,7 @@ class _ImpactBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Posição horizontal (0-1) do marcador na barra, por veredito.
     final position = switch (verdict) {
       SizeVerdict.light => 0.16,
       SizeVerdict.good => 0.5,
@@ -327,6 +335,9 @@ class _ImpactBar extends StatelessWidget {
   }
 }
 
+/// Chips de compatibilidade com destinos comuns (WhatsApp, X, Discord):
+/// mostra se o GIF cabe no limite de cada um e, se não couber, oferece um
+/// ajuste automático das configurações ao tocar.
 class _TargetsWrap extends StatelessWidget {
   const _TargetsWrap({required this.estimate, required this.onFitTo});
 
@@ -368,6 +379,8 @@ class _TargetsWrap extends StatelessWidget {
   }
 }
 
+/// Botão de compartilhamento ilustrativo (desabilitado): os atalhos reais
+/// só ficam disponíveis depois que o GIF é gerado, na tela de resultado.
 class _ShareButton extends StatelessWidget {
   const _ShareButton({required this.label, required this.icon});
 
