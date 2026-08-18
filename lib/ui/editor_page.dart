@@ -724,7 +724,6 @@ class _EditorPageState extends State<EditorPage> {
       value: '${_settings.sourceDurationSeconds.toStringAsFixed(1)} s',
       originalValue: '${_video.durationSeconds.toStringAsFixed(1)} s',
       hint: 'Selecione a parte do vídeo que deseja transformar em GIF.',
-      tip: 'Cortes menores geram GIFs menores.',
       child: Column(
         children: [
           RangeSlider(
@@ -788,9 +787,6 @@ class _EditorPageState extends State<EditorPage> {
       value: _aspect.label,
       originalValue: _ratioLabel(_video.width, _video.height),
       hint: 'Escolha o formato e redimensione a moldura diretamente na prévia.',
-      tip: _aspect == _customAspectPreset
-          ? 'Arraste qualquer bolinha de canto. Largura e altura são livres.'
-          : 'Arraste uma bolinha de canto. A proporção escolhida permanece travada.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1082,7 +1078,6 @@ class _EditorPageState extends State<EditorPage> {
       originalValue: '${_formatSpeed(1.0)}x',
       hint:
           'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
-      tip: '1x oferece o melhor equilíbrio entre duração e tamanho.',
       child: Column(
         children: [
           Slider(
