@@ -1169,8 +1169,6 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores',
       originalValue: 'Cores ilimitadas',
-      hint:
-          'Mais cores melhoram a qualidade, mas aumentam o tamanho do arquivo.',
       tip:
           '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
@@ -1189,7 +1187,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(height: 12),
           _collapsibleSubsection(
-            label: 'Suavização de cor · ${_settings.dither.description}',
+            label: 'Suavização de cor',
             expanded: _ditherExpanded,
             onToggle: () =>
                 setState(() => _ditherExpanded = !_ditherExpanded),
@@ -1202,7 +1200,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(height: 8),
           _collapsibleSubsection(
-            label: 'Paleta · ${_settings.palette.description}',
+            label: 'Paleta',
             expanded: _paletteExpanded,
             onToggle: () =>
                 setState(() => _paletteExpanded = !_paletteExpanded),
