@@ -481,8 +481,7 @@ class _EditorPageState extends State<EditorPage> {
     // switch exaustivo sobre `_CropHandle` compilar; foram agrupados com
     // o canto/lado correspondente para manter os valores plausíveis.
     final deltaW = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left =>
-        -dx,
+      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left => -dx,
       _CropHandle.topRight ||
       _CropHandle.bottomRight ||
       _CropHandle.right => dx,
@@ -534,8 +533,9 @@ class _EditorPageState extends State<EditorPage> {
     };
 
     final maxWidthByX = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.bottomLeft || _CropHandle.left =>
-        anchorX,
+      _CropHandle.topLeft ||
+      _CropHandle.bottomLeft ||
+      _CropHandle.left => anchorX,
       _CropHandle.topRight ||
       _CropHandle.bottomRight ||
       _CropHandle.right ||
@@ -543,8 +543,7 @@ class _EditorPageState extends State<EditorPage> {
       _CropHandle.bottom => _video.width - anchorX,
     };
     final maxHeightByY = switch (handle) {
-      _CropHandle.topLeft || _CropHandle.topRight || _CropHandle.top =>
-        anchorY,
+      _CropHandle.topLeft || _CropHandle.topRight || _CropHandle.top => anchorY,
       _CropHandle.bottomLeft ||
       _CropHandle.bottomRight ||
       _CropHandle.bottom ||
@@ -584,8 +583,7 @@ class _EditorPageState extends State<EditorPage> {
       _CropHandle.bottomRight ||
       _CropHandle.bottom ||
       _CropHandle.left ||
-      _CropHandle.right =>
-        anchorY.round().clamp(0, _video.height - evenHeight),
+      _CropHandle.right => anchorY.round().clamp(0, _video.height - evenHeight),
     };
 
     return CropRect(x: x, y: y, width: evenWidth, height: evenHeight);
@@ -1078,8 +1076,7 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Velocidade',
       value: '${_formatSpeed(_settings.speed)}x',
       originalValue: '${_formatSpeed(1.0)}x',
-      hint:
-          'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
+      hint: 'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
       child: Column(
         children: [
           Slider(
@@ -1144,8 +1141,7 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Quadros por segundo (FPS)',
       value: '${_settings.fps} FPS',
       originalValue: '${_video.frameRate.round()} FPS',
-      hint:
-          'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
+      hint: 'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
       tip: '12 FPS é um bom equilíbrio entre fluidez e tamanho.',
       child: OptionChips<int>(
         options: ConversionSettings.fpsOptions,
@@ -1169,8 +1165,7 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores',
       originalValue: 'Cores ilimitadas',
-      tip:
-          '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
+      tip: '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1189,8 +1184,7 @@ class _EditorPageState extends State<EditorPage> {
           _collapsibleSubsection(
             label: 'Suavização de cor',
             expanded: _ditherExpanded,
-            onToggle: () =>
-                setState(() => _ditherExpanded = !_ditherExpanded),
+            onToggle: () => setState(() => _ditherExpanded = !_ditherExpanded),
             child: OptionChips<DitherMode>(
               options: DitherMode.values,
               selected: _settings.dither,
@@ -1270,9 +1264,7 @@ class _EditorPageState extends State<EditorPage> {
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
-                Expanded(
-                  child: Text(label, style: theme.textTheme.bodySmall),
-                ),
+                Expanded(child: Text(label, style: theme.textTheme.bodySmall)),
                 Icon(
                   expanded
                       ? Icons.expand_less_rounded

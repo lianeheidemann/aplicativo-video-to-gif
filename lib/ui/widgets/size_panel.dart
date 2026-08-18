@@ -81,7 +81,11 @@ class SizePanel extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 10, left: 6, right: 6),
+                      padding: const EdgeInsets.only(
+                        bottom: 10,
+                        left: 6,
+                        right: 6,
+                      ),
                       child: Icon(
                         Icons.arrow_forward_rounded,
                         size: 17,
@@ -200,10 +204,8 @@ class SizePanel extends StatelessWidget {
   static String _contextMessage(SizeVerdict verdict) => switch (verdict) {
     SizeVerdict.light =>
       'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
-    SizeVerdict.good =>
-      'O arquivo está um pouco maior. Reduza a resolução, FPS ou duração se desejar.',
-    SizeVerdict.heavy || SizeVerdict.tooHeavy =>
-      'O GIF pode ficar muito grande. Tente reduzir a duração, resolução ou FPS.',
+    SizeVerdict.good => 'O arquivo está um pouco maior. Reduza a resolução, FPS ou duração se desejar.',
+    SizeVerdict.heavy || SizeVerdict.tooHeavy => 'O GIF pode ficar muito grande. Tente reduzir a duração, resolução ou FPS.',
   };
 }
 
@@ -308,4 +310,3 @@ class _ImpactBar extends StatelessWidget {
     );
   }
 }
-
