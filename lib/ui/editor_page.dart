@@ -1076,7 +1076,8 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Velocidade',
       value: '${_formatSpeed(_settings.speed)}x',
       originalValue: '${_formatSpeed(1.0)}x',
-      hint: 'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
+      hint:
+          'Acelerar encurta o GIF e economiza espaço; velocidades menores aumentam a duração.',
       child: Column(
         children: [
           Slider(
@@ -1141,7 +1142,8 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Quadros por segundo (FPS)',
       value: '${_settings.fps} FPS',
       originalValue: '${_video.frameRate.round()} FPS',
-      hint: 'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
+      hint:
+          'Mais FPS deixa a animação mais fluida, mas aumenta o tamanho do arquivo.',
       tip: '12 FPS é um bom equilíbrio entre fluidez e tamanho.',
       child: OptionChips<int>(
         options: ConversionSettings.fpsOptions,
@@ -1165,7 +1167,8 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores',
       originalValue: 'Cores ilimitadas',
-      tip: '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
+      tip:
+          '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1370,9 +1373,21 @@ class _CropOverlay extends StatelessWidget {
         double clampTop(double raw) =>
             raw.clamp(0.0, previewSize.height - _handleBoxSize);
 
-        // Constrói uma alça de canto arrastável na posição dada (já
-        // limitada para não sair da área visível da prévia).
+        // Constrói uma alça arrastável na posição dada (já limitada para
+        // não sair da área visível da prévia). As de canto são bolinhas;
+        // as de borda (meio de cada lado) são retângulos pequenos, para
+        // diferenciar visualmente que só movem um lado por vez.
         Widget handle(_CropHandle handle, double rawLeft, double rawTop) {
+          final isEdge =
+              handle == _CropHandle.top ||
+              handle == _CropHandle.bottom ||
+              handle == _CropHandle.left ||
+              handle == _CropHandle.right;
+          final isVertical =
+              handle == _CropHandle.left || handle == _CropHandle.right;
+          final markWidth = isEdge ? (isVertical ? 8.0 : 22.0) : 15.0;
+          final markHeight = isEdge ? (isVertical ? 22.0 : 8.0) : 15.0;
+
           return Positioned(
             left: clampLeft(rawLeft),
             top: clampTop(rawTop),
@@ -1385,11 +1400,12 @@ class _CropOverlay extends StatelessWidget {
                 height: _handleBoxSize,
                 child: Center(
                   child: Container(
-                    width: 15,
-                    height: 15,
+                    width: markWidth,
+                    height: markHeight,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      shape: BoxShape.circle,
+                      shape: isEdge ? BoxShape.rectangle : BoxShape.circle,
+                      borderRadius: isEdge ? BorderRadius.circular(3) : null,
                       border: Border.all(color: Colors.black54, width: 1.5),
                       boxShadow: const [
                         BoxShadow(

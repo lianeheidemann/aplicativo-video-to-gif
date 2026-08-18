@@ -269,12 +269,12 @@ class SizeEstimator {
     }
 
     return ComplexityProfile(
-      bytesPerPixel: mix((s) => s.bytesPerPixel)
-          .clamp(_minBpp, _maxBpp)
-          .toDouble(),
-      keyBytesPerPixel: mix((s) => s.keyBytesPerPixel)
-          .clamp(_minKeyBpp, _maxKeyBpp)
-          .toDouble(),
+      bytesPerPixel: mix(
+        (s) => s.bytesPerPixel,
+      ).clamp(_minBpp, _maxBpp).toDouble(),
+      keyBytesPerPixel: mix(
+        (s) => s.keyBytesPerPixel,
+      ).clamp(_minKeyBpp, _maxKeyBpp).toDouble(),
       confidence: EstimateConfidence.calibrated,
     );
   }
