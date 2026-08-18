@@ -47,7 +47,6 @@ Future<void> _pumpPanel(
           child: SizePanel(
             estimate: estimate,
             originalBytes: originalBytes,
-            suggestion: 'Dica: 40% mais leve se baixar para 10 FPS.',
             summary: _summary,
             measuring: measuring,
             onMeasure: onMeasure ?? () {},

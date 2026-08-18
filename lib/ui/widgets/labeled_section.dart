@@ -150,7 +150,10 @@ class LabeledSection extends StatelessWidget {
 }
 
 /// Lista de opções em chips selecionáveis (só uma ativa por vez), com um
-/// ícone de check na opção selecionada.
+/// ícone de check na opção selecionada. Opções que [isEnabled] rejeita
+/// aparecem esmaecidas e não podem ser tocadas — usado para opções que
+/// excedem uma configuração do vídeo original (ex.: FPS ou resolução
+/// maiores que os do arquivo importado).
 class OptionChips<T> extends StatelessWidget {
   const OptionChips({
     super.key,
@@ -158,12 +161,14 @@ class OptionChips<T> extends StatelessWidget {
     required this.selected,
     required this.labelBuilder,
     required this.onSelected,
+    this.isEnabled,
   });
 
   final List<T> options;
   final T selected;
   final String Function(T) labelBuilder;
   final ValueChanged<T> onSelected;
+  final bool Function(T)? isEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -172,11 +177,12 @@ class OptionChips<T> extends StatelessWidget {
       runSpacing: 8,
       children: options.map((option) {
         final isSelected = option == selected;
+        final enabled = isEnabled?.call(option) ?? true;
         return ChoiceChip(
           label: Text(labelBuilder(option)),
           selected: isSelected,
           showCheckmark: true,
-          onSelected: (_) => onSelected(option),
+          onSelected: enabled ? (_) => onSelected(option) : null,
           avatar: isSelected ? const Icon(Icons.check, size: 16) : null,
         );
       }).toList(),
