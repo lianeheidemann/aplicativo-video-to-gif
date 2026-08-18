@@ -172,11 +172,19 @@ class SizePanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        FilledButton.icon(
+        FilledButton(
           onPressed: onConvert,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Converter em GIF ✨'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(58)),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_awesome),
+              SizedBox(width: 8),
+              Text('Converter em GIF'),
+              SizedBox(width: 8),
+              Icon(Icons.auto_awesome),
+            ],
+          ),
         ),
       ],
     );

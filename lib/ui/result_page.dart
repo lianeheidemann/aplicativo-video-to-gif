@@ -78,167 +78,171 @@ class _ResultPageState extends State<ResultPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              color: theme.colorScheme.surfaceContainerHigh,
-              child: Center(
-                // Image.file anima GIFs automaticamente, então isso já é
-                // uma prévia real do resultado.
-                child: Image.file(
-                  result.file,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.medium,
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                color: theme.colorScheme.surfaceContainerHigh,
+                child: Center(
+                  // Image.file anima GIFs automaticamente, então isso já é
+                  // uma prévia real do resultado.
+                  child: Image.file(
+                    result.file,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        result.formattedSize,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: verdictColor(verdict, theme.colorScheme),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        verdict.label,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: verdictColor(verdict, theme.colorScheme),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    verdict.advice,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const Divider(height: 28),
-                  Text(
-                    'Tamanho',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  _row(
-                    'Original',
-                    SizeEstimate.formatBytes(widget.video.fileSizeBytes),
-                  ),
-                  _row('Previsto', widget.estimate.formatted),
-                  if (widget.estimate.confidence !=
-                      EstimateConfidence.calibrated) ...[
-                    const SizedBox(height: 4),
+            const SizedBox(height: 20),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 15,
-                          color: theme.colorScheme.onSurfaceVariant,
+                        Text(
+                          result.formattedSize,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: verdictColor(verdict, theme.colorScheme),
+                          ),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            widget.estimate.confidence.explanation,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                        const SizedBox(width: 10),
+                        Text(
+                          verdict.label,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: verdictColor(verdict, theme.colorScheme),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                  ],
-                  _row(
-                    'Convertido',
-                    result.formattedSize,
-                    warn: result.bytes > widget.video.fileSizeBytes,
-                  ),
-                  _row('Diferença da previsão', _predictionDiff()),
-                  _row(
-                    'Dimensões',
-                    '${result.width}×${result.height} px',
-                    original: '${widget.video.width}×${widget.video.height} px',
-                  ),
-                  _row(
-                    'Quadros',
-                    '${result.frames}',
-                    original: '${_originalFrames()}',
-                  ),
-                  _row(
-                    'Duração',
-                    '${widget.settings.outputDurationSeconds.toStringAsFixed(1)}s '
-                        'a ${widget.settings.fps} FPS',
-                    original:
-                        '${widget.video.durationSeconds.toStringAsFixed(1)}s',
-                  ),
-                  const Divider(height: 28),
-                  Text(
-                    'Qualidade',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    Text(
+                      verdict.advice,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                  _row('Cores', '${widget.settings.colors} cores'),
-                  _row('Suavização', widget.settings.dither.label),
-                  _row('Paleta', widget.settings.palette.label),
-                  const Divider(height: 28),
-                  _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
-                ],
+                    const Divider(height: 28),
+                    Text(
+                      'Tamanho',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    _row(
+                      'Original',
+                      SizeEstimate.formatBytes(widget.video.fileSizeBytes),
+                    ),
+                    _row('Previsto', widget.estimate.formatted),
+                    if (widget.estimate.confidence !=
+                        EstimateConfidence.calibrated) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 15,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              widget.estimate.confidence.explanation,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    _row(
+                      'Convertido',
+                      result.formattedSize,
+                      warn: result.bytes > widget.video.fileSizeBytes,
+                    ),
+                    _row('Diferença da previsão', _predictionDiff()),
+                    _row(
+                      'Dimensões',
+                      '${result.width}×${result.height} px',
+                      original:
+                          '${widget.video.width}×${widget.video.height} px',
+                    ),
+                    _row(
+                      'Quadros',
+                      '${result.frames}',
+                      original: '${_originalFrames()}',
+                    ),
+                    _row(
+                      'Duração',
+                      '${widget.settings.outputDurationSeconds.toStringAsFixed(1)}s '
+                          'a ${widget.settings.fps} FPS',
+                      original:
+                          '${widget.video.durationSeconds.toStringAsFixed(1)}s',
+                    ),
+                    const Divider(height: 28),
+                    Text(
+                      'Qualidade',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    _row('Cores', '${widget.settings.colors} cores'),
+                    _row('Suavização', widget.settings.dither.label),
+                    _row('Paleta', widget.settings.palette.label),
+                    const Divider(height: 28),
+                    _row('Tempo de conversão', '${result.elapsed.inSeconds}s'),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _saving || _saved ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(_saved ? Icons.check : Icons.download),
-            label: Text(
-              _saving
-                  ? 'Salvando…'
-                  : _saved
-                  ? 'Salvo na galeria'
-                  : 'Salvar na galeria',
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _saving || _saved ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(_saved ? Icons.check : Icons.download),
+              label: Text(
+                _saving
+                    ? 'Salvando…'
+                    : _saved
+                    ? 'Salvo na galeria'
+                    : 'Salvar na galeria',
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => _output.share(result.file),
-            icon: const Icon(Icons.share_outlined),
-            label: const Text('Compartilhar'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => _output.share(result.file),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartilhar'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.tune),
-            label: const Text('Voltar e ajustar de novo'),
-          ),
-        ],
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.tune),
+              label: const Text('Voltar e ajustar de novo'),
+            ),
+          ],
+        ),
       ),
     );
   }

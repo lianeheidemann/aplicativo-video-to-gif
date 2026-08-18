@@ -150,7 +150,7 @@ void main() {
         onConvert: () => chamou = true,
       );
 
-      await tester.tap(find.text('Converter em GIF ✨'));
+      await tester.tap(find.text('Converter em GIF'));
       expect(chamou, isTrue);
     });
   });
