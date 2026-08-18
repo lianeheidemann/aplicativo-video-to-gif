@@ -87,7 +87,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                // Com a DSL legada exigida pelo Flutter 3.47, o AGP 9.1
+                // resolve o arquivo padrão para um intermediário que não é
+                // gerado. Mantemos uma cópia equivalente no projeto.
+                "proguard-android-optimize.txt",
                 "proguard-rules.pro",
             )
         }

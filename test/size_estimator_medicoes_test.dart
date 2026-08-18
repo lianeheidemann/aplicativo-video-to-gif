@@ -45,12 +45,16 @@ const _conversao = ConversionSettings(
 ConversionSettings _amostra(double inicio) =>
     _conversao.copyWith(startSeconds: inicio, endSeconds: inicio + 1.0);
 
+/// Uma medição real de amostra: peso do GIF da janela inteira e do mesmo
+/// GIF cortado no primeiro quadro (os dois números que a calibração usa).
 class _Medicao {
   const _Medicao(this.bytes, this.primeiroQuadro);
   final int bytes;
   final int primeiroQuadro;
 }
 
+/// Um vídeo sintético de teste: o peso real da conversão completa (medido
+/// de verdade) e as amostras usadas para calibrar a previsão.
 class _Caso {
   const _Caso(this.nome, this.realBytes, this.amostras);
   final String nome;
@@ -87,6 +91,9 @@ const _casos = <_Caso>[
   ]),
 ];
 
+/// Repete o fluxo do app para um [caso]: calibra um perfil a partir de
+/// cada amostra medida, combina os perfis e prevê o peso da conversão
+/// inteira a partir daí.
 int _preverCom(_Caso caso) {
   final perfis = [
     for (var i = 0; i < caso.amostras.length; i++)

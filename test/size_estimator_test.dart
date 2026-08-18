@@ -22,6 +22,8 @@ const _base = ConversionSettings(
   targetWidth: 480,
 );
 
+/// Atalho para pegar só os bytes estimados de uma combinação de
+/// configurações (e, opcionalmente, um perfil já calibrado).
 int _bytes(ConversionSettings settings, {ComplexityProfile? profile}) =>
     SizeEstimator.estimate(
       settings: settings,
@@ -29,6 +31,8 @@ int _bytes(ConversionSettings settings, {ComplexityProfile? profile}) =>
       profile: profile ?? ComplexityProfile.fallback,
     ).bytes;
 
+/// Monta um perfil de complexidade "calibrado" fictício para os testes,
+/// com o custo do primeiro quadro por padrão 1,8x o dos demais.
 ComplexityProfile _profile(double bpp, {double? key}) => ComplexityProfile(
   bytesPerPixel: bpp,
   keyBytesPerPixel: key ?? bpp * 1.8,

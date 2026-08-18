@@ -28,7 +28,7 @@ spend time converting it**.
 > All conversion runs on-device with FFmpeg. The app has no internet
 > permission.
 >
-> **[⬇ Download the APK](https://github.com/lianeheidemann/video-to-gif/releases/latest)**
+> **[⬇ Download the APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
 > — installs straight onto Android, no store needed.
 
 <br>
@@ -37,13 +37,13 @@ spend time converting it**.
 
 <div align="center">
 
-<img width="20%" src="assets/demonstration-v9.gif"/>
+<img width="20%" src="assets/gif/demonstration.gif"/>
 
 </div>
 
 ## Interface
 
-<img src="assets/image/interface-v4.png"/>
+<img src="assets/image/interface/interface.png"/>
 
 ## The problem it solves
 
@@ -111,9 +111,12 @@ installed.
 ```bash
 git clone https://github.com/lianeheidemann/aplicativo-video-to-gif.git
 cd aplicativo-video-to-gif
-
+```
+```
 flutter pub get
 flutter test
+```
+```
 flutter run
 ```
 
@@ -189,7 +192,7 @@ problems with FFmpeg's native libraries.
 ## Download the APK
 
 Every published version becomes a
-[Release](https://github.com/lianeheidemann/video-to-gif/releases)
+[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
 with ready-to-install APKs — start with `arm64-v8a`, which covers
 practically every current Android phone. `universal` is larger, but works
 on any device.
@@ -197,8 +200,8 @@ on any device.
 To cut a new version:
 
 ```bash
-git tag v1.1.2
-git push origin v1.1.2
+git tag v1.1.4
+git push origin v1.1.4
 ```
 
 The `.github/workflows/release.yml` workflow builds, names and publishes
