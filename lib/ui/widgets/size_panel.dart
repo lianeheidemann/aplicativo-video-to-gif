@@ -11,7 +11,6 @@ class SizePanel extends StatelessWidget {
     super.key,
     required this.estimate,
     required this.originalBytes,
-    required this.suggestion,
     required this.summary,
     required this.measuring,
     required this.onMeasure,
@@ -23,7 +22,6 @@ class SizePanel extends StatelessWidget {
   /// Tamanho em bytes do vídeo original, mostrado ao lado da estimativa do
   /// GIF para o usuário comparar o antes e o depois.
   final int originalBytes;
-  final String suggestion;
   final String summary;
   final bool measuring;
   final VoidCallback onMeasure;
@@ -169,15 +167,6 @@ class SizePanel extends StatelessWidget {
                         : 'Medir',
                   ),
                 ),
-                if (suggestion.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    suggestion,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

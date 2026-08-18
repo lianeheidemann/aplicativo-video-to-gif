@@ -207,11 +207,6 @@ class _EditorPageState extends State<EditorPage> {
             SizePanel(
               estimate: _estimate,
               originalBytes: _video.fileSizeBytes,
-              suggestion: SizeEstimator.suggestionFor(
-                settings: _settings,
-                video: _video,
-                profile: _profile,
-              ),
               summary:
                   '$width×$height px · ${_settings.fps} FPS · '
                   '${_settings.outputDurationSeconds.toStringAsFixed(1)} s · '
@@ -1108,7 +1103,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Seção de resolução: só oferece larguras que cabem no vídeo original.
+  /// Seção de resolução: larguras maiores que o vídeo original ficam
+  /// desabilitadas, para não deixar o usuário tentar ampliar a imagem.
   Widget _resolutionSection() {
     final available = ConversionSettings.widthOptions
         .where((w) => w <= _video.width)
@@ -1129,9 +1125,10 @@ class _EditorPageState extends State<EditorPage> {
           'Reduzir a largura diminui significativamente o tamanho do arquivo.',
       tip: '480 px oferece boa qualidade para a maioria dos casos.',
       child: OptionChips<int>(
-        options: available,
+        options: ConversionSettings.widthOptions,
         selected: selected,
         labelBuilder: (w) => '$w px',
+        isEnabled: (w) => w <= _video.width,
         onSelected: (w) => _update(_settings.copyWith(targetWidth: w)),
       ),
     );
@@ -1151,6 +1148,7 @@ class _EditorPageState extends State<EditorPage> {
         options: ConversionSettings.fpsOptions,
         selected: _settings.fps,
         labelBuilder: (fps) => '$fps FPS',
+        isEnabled: (fps) => fps <= _video.frameRate.round(),
         onSelected: (fps) => _update(_settings.copyWith(fps: fps)),
       ),
     );

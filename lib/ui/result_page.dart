@@ -171,6 +171,7 @@ class _ResultPageState extends State<ResultPage> {
                     result.formattedSize,
                     warn: result.bytes > widget.video.fileSizeBytes,
                   ),
+                  _row('Diferença da previsão', _predictionDiff()),
                   _row(
                     'Dimensões',
                     '${result.width}×${result.height} px',
@@ -305,4 +306,13 @@ class _ResultPageState extends State<ResultPage> {
   /// origem), já que o [VideoInfo] não guarda a contagem exata.
   int _originalFrames() =>
       (widget.video.durationSeconds * widget.video.frameRate).round();
+
+  /// Diferença percentual entre o tamanho previsto e o convertido de
+  /// verdade (ex.: "-34%" quando o GIF saiu mais leve que a estimativa).
+  String _predictionDiff() {
+    final estimated = widget.estimate.bytes;
+    final actual = widget.result.bytes;
+    final percent = ((actual - estimated) / estimated * 100).round();
+    return percent > 0 ? '+$percent%' : '$percent%';
+  }
 }
