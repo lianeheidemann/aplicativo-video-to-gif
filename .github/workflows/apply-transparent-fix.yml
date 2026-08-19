@@ -1,0 +1,111 @@
+name: Apply transparent GIF fix
+
+on:
+  push:
+    branches: ['fix/transparent-gif-export']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/transparent-gif-export
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Aplicar correção
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/services/ffmpeg_service.dart')
+          text = path.read_text()
+
+          old_gen = """    final maskStage = maskPath != null
+              ? ';[framed][1:v]alphamerge[$paletteLabel]'
+              : '';
+          """
+          new_gen = """    final maskStage = maskPath != null
+              ? ';[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+                  '[1:v]format=gray,setpts=PTS-STARTPTS[mask_gray];'
+                  '[framed_rgba][mask_gray]alphamerge=shortest=1[$paletteLabel]'
+              : '';
+          """
+
+          old_use = """    final maskStage = maskPath != null
+              ? ';[framed][2:v]alphamerge[$useLabel]'
+              : '';
+          """
+          new_use = """    final maskStage = maskPath != null
+              ? ';[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+                  '[2:v]format=gray,setpts=PTS-STARTPTS[mask_gray];'
+                  '[framed_rgba][mask_gray]alphamerge=shortest=1[$useLabel]'
+              : '';
+          """
+
+          old_mask_input = """      if (maskPath != null) ...[
+                '-loop',
+                '1',
+                '-t',
+                _seconds(settings.sourceDurationSeconds),
+                '-i',
+                maskPath,
+              ],
+          """
+          new_mask_input = """      if (maskPath != null) ...[
+                '-loop',
+                '1',
+                '-framerate',
+                '${settings.fps}',
+                '-t',
+                _seconds(settings.outputDurationSeconds),
+                '-i',
+                maskPath,
+              ],
+          """
+
+          if old_gen not in text:
+              raise SystemExit('Trecho paletteGen não encontrado')
+          if old_use not in text:
+              raise SystemExit('Trecho paletteUse não encontrado')
+          if text.count(old_mask_input) != 2:
+              raise SystemExit(f'Esperava 2 entradas de máscara; achei {text.count(old_mask_input)}')
+
+          text = text.replace(old_gen, new_gen)
+          text = text.replace(old_use, new_use)
+          text = text.replace(old_mask_input, new_mask_input)
+          text = text.replace(
+              "// `-loop 1` faz a máscara virar um stream infinito. Sem o `-t` aqui,\n      // quando o vídeo (finito) termina, o `alphamerge` repete o último\n      // quadro dele para sempre em vez de encerrar — e como esta passagem\n      // não tem `-frames:v` para limitar a saída, o FFmpeg nunca termina.\n",
+              "// A máscara usa a mesma taxa de quadros e a mesma duração FINAL do\n      // vídeo filtrado. O alphamerge também usa shortest=1, evitando tanto\n      // repetição infinita quanto conflitos de timestamp no Android.\n",
+          )
+          path.write_text(text)
+          PY
+
+      - name: Formatar
+        run: dart format lib/services/ffmpeg_service.dart
+
+      - name: Analisar
+        run: flutter analyze
+
+      - name: Testar
+        run: flutter test
+
+      - name: Commitar correção e remover workflow temporário
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-transparent-fix.yml
+          git add lib/services/ffmpeg_service.dart
+          git commit -m "Corrige exportação GIF com fundo transparente"
+          git push origin HEAD:fix/transparent-gif-export
