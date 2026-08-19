@@ -452,15 +452,18 @@ class _EditorPageState extends State<EditorPage> {
             children: [
               Positioned.fromRect(
                 rect: rect,
-                child: ClipRect(
-                  child: FittedBox(
-                    fit: fit == ContentFitMode.fill
-                        ? BoxFit.cover
-                        : BoxFit.contain,
-                    child: SizedBox(
-                      width: 1000,
-                      height: 1000 / _video.aspectRatio,
-                      child: _preview(),
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: ClipRect(
+                    child: FittedBox(
+                      fit: fit == ContentFitMode.fill
+                          ? BoxFit.cover
+                          : BoxFit.contain,
+                      child: SizedBox(
+                        width: 1000,
+                        height: 1000 / _video.aspectRatio,
+                        child: _preview(),
+                      ),
                     ),
                   ),
                 ),

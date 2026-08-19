@@ -359,7 +359,14 @@ class FfmpegService {
       'color=black[base]',
     );
     parts.add('[$artInput]setpts=PTS-STARTPTS[art]');
-    parts.add('[base][art]overlay=0:0,format=rgba[visual]');
+    // A arte e a máscara são entradas em loop. Sem `shortest`, o overlay
+    // continua repetindo o último quadro do vídeo para sempre e a conversão
+    // de molduras de imagem fica presa em 0%. O vídeo é a entrada principal,
+    // portanto ele também define o fim da composição.
+    parts.add(
+      '[base][art]overlay=0:0:shortest=1:repeatlast=0,'
+      'format=rgba[visual]',
+    );
     parts.add(
       '[$artInput]alphaextract,format=gray,setpts=PTS-STARTPTS[art_alpha]',
     );
@@ -463,6 +470,10 @@ class FfmpegService {
       '-loop',
       settings.loop ? '0' : '-1',
       '-an',
+      // As entradas da arte e da máscara são infinitas; encerra a saída junto
+      // com o fluxo de vídeo, mesmo em builds do FFmpeg que não propagam o EOF
+      // através de todos os filtros complexos.
+      '-shortest',
       if (frameLimit != null) ...['-frames:v', '$frameLimit'],
       '-f',
       'gif',
