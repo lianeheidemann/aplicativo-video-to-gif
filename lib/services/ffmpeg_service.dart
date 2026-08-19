@@ -990,6 +990,7 @@ class FfmpegService {
             );
           }
         } on FfmpegException {
+          // Uma amostra inválida não deve interromper as demais medições.
         } finally {
           _activeSessionId = null;
           _deleteQuietly(palettePath);
@@ -1067,6 +1068,8 @@ class FfmpegService {
     try {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
-    } on FileSystemException {}
+    } on FileSystemException {
+      // A limpeza é de melhor esforço; o arquivo temporário pode já ter sumido.
+    }
   }
 }
