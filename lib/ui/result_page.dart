@@ -152,12 +152,6 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                     _row('Diferença da previsão', _predictionDiff()),
                     _row(
-                      'Dimensões',
-                      '${result.width}×${result.height} px',
-                      original:
-                          '${widget.video.width}×${widget.video.height} px',
-                    ),
-                    _row(
                       'Quadros',
                       '${result.frames}',
                       original: '${_originalFrames()}',
@@ -168,6 +162,12 @@ class _ResultPageState extends State<ResultPage> {
                           'a ${widget.settings.fps} FPS',
                       original:
                           '${widget.video.durationSeconds.toStringAsFixed(1)}s',
+                    ),
+                    _row(
+                      'Dimensões',
+                      '${result.width}×${result.height} px',
+                      original:
+                          '${widget.video.width}×${widget.video.height} px',
                     ),
                     const Divider(height: 28),
                     Text(
