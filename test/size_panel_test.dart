@@ -94,22 +94,23 @@ void main() {
       expect(chamou, isTrue);
     });
 
-    testWidgets('depois de medir, anuncia a faixa medida e permite recalcular', (
-      tester,
-    ) async {
-      await _pumpPanel(
-        tester,
-        estimate: _estimate(
-          bytes: 3 * 1024 * 1024,
-          confidence: EstimateConfidence.calibrated,
-        ),
-      );
+    testWidgets(
+      'depois de medir, anuncia a faixa medida e permite recalcular',
+      (tester) async {
+        await _pumpPanel(
+          tester,
+          estimate: _estimate(
+            bytes: 3 * 1024 * 1024,
+            confidence: EstimateConfidence.calibrated,
+          ),
+        );
 
-      expect(find.textContaining('Faixa medida: '), findsOneWidget);
-      expect(find.text('Medir'), findsNothing);
-      expect(find.text('Medir novamente'), findsNothing);
-      expect(find.text('Recalcular'), findsOneWidget);
-    });
+        expect(find.textContaining('Faixa medida: '), findsOneWidget);
+        expect(find.text('Medir'), findsNothing);
+        expect(find.text('Medir novamente'), findsNothing);
+        expect(find.text('Recalcular'), findsOneWidget);
+      },
+    );
 
     testWidgets('a faixa aperta quando a estimativa é medida', (tester) async {
       final aproximada = _estimate(bytes: 3 * 1024 * 1024);
