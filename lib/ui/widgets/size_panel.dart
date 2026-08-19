@@ -136,19 +136,6 @@ class SizePanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 _ImpactBar(verdict: estimate.verdict),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _contextMessage(estimate.verdict),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 14),
                 OutlinedButton.icon(
                   onPressed: measuring ? null : onMeasure,
@@ -195,16 +182,6 @@ class SizePanel extends StatelessWidget {
     SizeVerdict.light => 'Leve',
     SizeVerdict.good => 'Moderado',
     SizeVerdict.heavy || SizeVerdict.tooHeavy => 'Pesado',
-  };
-
-  /// Mensagem explicativa mostrada abaixo da barra de impacto.
-  static String _contextMessage(SizeVerdict verdict) => switch (verdict) {
-    SizeVerdict.light =>
-      'Bom equilíbrio! Seu GIF ficará leve e com ótima qualidade.',
-    SizeVerdict.good =>
-      'O arquivo está um pouco maior. Reduza a resolução, FPS ou duração se desejar.',
-    SizeVerdict.heavy || SizeVerdict.tooHeavy =>
-      'O GIF pode ficar muito grande. Tente reduzir a duração, resolução ou FPS.',
   };
 }
 
