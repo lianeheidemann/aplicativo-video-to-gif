@@ -56,9 +56,7 @@ class SizePanel extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: color.withValues(alpha: 0.2),
-                        ),
+                        border: Border.all(color: color.withValues(alpha: 0.2)),
                       ),
                       child: Icon(Icons.data_usage_rounded, color: color),
                     ),
@@ -163,9 +161,7 @@ class SizePanel extends StatelessWidget {
         const SizedBox(height: 18),
         FilledButton.icon(
           onPressed: onConvert,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(60),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60)),
           icon: const Icon(Icons.swap_horiz_rounded),
           label: const Text('Converter em GIF'),
         ),
