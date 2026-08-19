@@ -179,6 +179,28 @@ class _EditorPageState extends State<EditorPage> {
   @override
   Widget build(BuildContext context) {
     final (width, height) = _settings.outputDimensions(_video);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final optionSections = [
+      _durationSection(),
+      _aspectSection(),
+      _speedSection(),
+      _resolutionSection(),
+      _fpsSection(),
+      _colorSection(),
+      SizePanel(
+        estimate: _estimate,
+        originalBytes: _video.fileSizeBytes,
+        summary:
+            '$width×$height px · ${_settings.fps} FPS · '
+            '${_settings.outputDurationSeconds.toStringAsFixed(1)} s · '
+            '${_settings.colors} cores',
+        measuring: _measuring,
+        onMeasure: _measure,
+        onConvert: _openingConversion ? () {} : _convert,
+      ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -194,30 +216,36 @@ class _EditorPageState extends State<EditorPage> {
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-          children: [
-            _preview(),
-            const SizedBox(height: 18),
-            _durationSection(),
-            _aspectSection(),
-            _speedSection(),
-            _resolutionSection(),
-            _fpsSection(),
-            _colorSection(),
-            SizePanel(
-              estimate: _estimate,
-              originalBytes: _video.fileSizeBytes,
-              summary:
-                  '$width×$height px · ${_settings.fps} FPS · '
-                  '${_settings.outputDurationSeconds.toStringAsFixed(1)} s · '
-                  '${_settings.colors} cores',
-              measuring: _measuring,
-              onMeasure: _measure,
-              onConvert: _openingConversion ? () {} : _convert,
-            ),
-          ],
-        ),
+        child: isLandscape
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 10, 14),
+                      child: SingleChildScrollView(
+                        child: Center(child: _preview()),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 5,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(10, 14, 20, 28),
+                      children: optionSections,
+                    ),
+                  ),
+                ],
+              )
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                children: [
+                  _preview(),
+                  const SizedBox(height: 18),
+                  ...optionSections,
+                ],
+              ),
       ),
     );
   }
