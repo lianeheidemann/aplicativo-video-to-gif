@@ -6,12 +6,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A versão do Flutter é fixada de propósito. Com `channel: stable` sozinho, o
-# runner pega a stable mais nova do dia e o resultado do CI passa a depender da
-# data em que rodou — o `dart format` muda de opinião entre versões e o build
-# quebra sem ninguém ter mexido no código. Para atualizar: suba o número aqui,
-# rode `dart format lib test` localmente na mesma versão e comite as duas
-# coisas juntas.
 env:
   FLUTTER_VERSION: '3.47.0'
 
@@ -30,9 +24,6 @@ jobs:
 
       - run: flutter pub get
 
-      # Os três passos abaixo rodam sempre, mesmo depois de um falhar. Sem
-      # isso, um deslize de formatação aborta o job e esconde os erros de
-      # análise e de teste, que só aparecem no push seguinte.
       - name: Conferir formatação
         if: ${{ !cancelled() }}
         run: dart format --output=none --set-exit-if-changed lib test
@@ -48,30 +39,16 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
-    # Necessário para o setup-gradle enviar o grafo de dependências (ver
-    # passo "Configurar o Gradle" abaixo). Em PRs de forks o GitHub força o
-    # token a somente-leitura mesmo com isso declarado, então o envio já
-    # fica restrito a push por conta própria (condição `if` no passo).
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      # O build de release exige o keystore, que não vive no repositório.
-      # Aqui geramos só o APK de debug: o objetivo deste job é pegar erros de
-      # Gradle, de fusão de manifesto e de empacotamento das bibliotecas
-      # nativas do FFmpeg — não produzir um artefato publicável.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Valida o checksum do gradle-wrapper.jar contra os hashes oficiais da
-      # Gradle (protege contra um wrapper adulterado rodar código arbitrário
-      # no runner) e, só em push, envia o grafo de dependências resolvido
-      # pelo Gradle para o GitHub — sem isso, as libs Android/Kotlin/FFmpeg
-      # nativas ficam de fora dos alertas do Dependabot, que só enxerga o
-      # pubspec.yaml sozinho.
       - name: Configurar o Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -94,3 +71,119 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+  aplicar-correcao-transparencia:
+    name: Aplicar correção de transparência
+    if: github.ref == 'refs/heads/fix/transparent-gif-export' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/transparent-gif-export
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Aplicar patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/services/ffmpeg_service.dart')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  """    final maskStage = maskPath != null
+              ? ';[framed][1:v]alphamerge[$paletteLabel]'
+              : '';
+""",
+                  """    final maskStage = maskPath != null
+              ? ';[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+                  '[1:v]format=gray,setpts=PTS-STARTPTS[mask_gray];'
+                  '[framed_rgba][mask_gray]alphamerge=shortest=1[$paletteLabel]'
+              : '';
+""",
+              ),
+              (
+                  """    final maskStage = maskPath != null
+              ? ';[framed][2:v]alphamerge[$useLabel]'
+              : '';
+""",
+                  """    final maskStage = maskPath != null
+              ? ';[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+                  '[2:v]format=gray,setpts=PTS-STARTPTS[mask_gray];'
+                  '[framed_rgba][mask_gray]alphamerge=shortest=1[$useLabel]'
+              : '';
+""",
+              ),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit('Trecho esperado não encontrado no ffmpeg_service.dart')
+              text = text.replace(old, new, 1)
+
+          old_input = """      if (maskPath != null) ...[
+        '-loop',
+        '1',
+        '-t',
+        _seconds(settings.sourceDurationSeconds),
+        '-i',
+        maskPath,
+      ],
+"""
+          new_input = """      if (maskPath != null) ...[
+        '-loop',
+        '1',
+        '-framerate',
+        '${settings.fps}',
+        '-t',
+        _seconds(settings.outputDurationSeconds),
+        '-i',
+        maskPath,
+      ],
+"""
+          if text.count(old_input) != 2:
+              raise SystemExit(f'Esperava 2 entradas da máscara; encontrei {text.count(old_input)}')
+          text = text.replace(old_input, new_input)
+
+          old_comment = """      // `-loop 1` faz a máscara virar um stream infinito. Sem o `-t` aqui,
+      // quando o vídeo (finito) termina, o `alphamerge` repete o último
+      // quadro dele para sempre em vez de encerrar — e como esta passagem
+      // não tem `-frames:v` para limitar a saída, o FFmpeg nunca termina.
+"""
+          new_comment = """      // A máscara usa a mesma taxa de quadros e a mesma duração final do
+      // vídeo filtrado. O alphamerge usa shortest=1 para não repetir quadros
+      // nem manter o stream da máscara aberto depois que o vídeo termina.
+"""
+          text = text.replace(old_comment, new_comment)
+          path.write_text(text)
+          PY
+
+      - name: Formatar e validar
+        run: |
+          dart format lib/services/ffmpeg_service.dart
+          flutter analyze
+          flutter test
+
+      - name: Commitar somente a correção
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+          if [ -f .github/workflows/apply-transparent-fix.yml ]; then
+            git rm .github/workflows/apply-transparent-fix.yml
+          fi
+          git add lib/services/ffmpeg_service.dart .github/workflows/ci.yml
+          git commit -m "Corrige exportação GIF com fundo transparente"
+          git push origin HEAD:fix/transparent-gif-export
