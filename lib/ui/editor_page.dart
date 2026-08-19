@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/conversion_settings.dart';
+import '../models/frame_settings.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
 import '../services/ffmpeg_service.dart';
 import '../services/size_estimator.dart';
+import '../theme_controller.dart';
 import 'converting_page.dart';
+import 'widgets/frame_painter.dart';
 import 'widgets/labeled_section.dart';
 import 'widgets/size_panel.dart';
 
@@ -27,6 +30,10 @@ enum _CropHandle {
   left,
   right,
 }
+
+/// As duas abas do editor: "Ajustar" (configurações de conversão) e
+/// "Frame" (ainda a definir).
+enum _EditorTab { ajustar, frame }
 
 /// Tela principal de edição: prévia do vídeo, corte de duração, recorte de
 /// área, velocidade, resolução, FPS/cores e o painel de estimativa de
@@ -60,6 +67,7 @@ class _EditorPageState extends State<EditorPage> {
   AspectPreset _aspect = AspectPreset.presets.first;
   bool _ditherExpanded = false;
   bool _paletteExpanded = false;
+  _EditorTab _tab = _EditorTab.ajustar;
 
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
@@ -202,53 +210,676 @@ class _EditorPageState extends State<EditorPage> {
       ),
     ];
 
+    final sections = _tab == _EditorTab.ajustar
+        ? optionSections
+        : _frameSections();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ajustar GIF'),
-        actions: [
-          IconButton(
-            tooltip: 'Como deixar o GIF mais leve',
-            onPressed: _showHelp,
-            icon: const Icon(Icons.help_outline_rounded),
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: isLandscape
-            ? Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 10, 14),
-                      child: SingleChildScrollView(
-                        child: Center(child: _preview()),
+      // Na horizontal, esconde a barra superior (título + ações) e o
+      // seletor de abas para aproveitar melhor o espaço vertical, que já é
+      // escasso nesse formato — a navegação de voltar continua disponível
+      // pelo gesto/botão do sistema.
+      appBar: isLandscape
+          ? null
+          : AppBar(
+              title: const Text('Editar GIF'),
+              actions: [
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: themeModeNotifier,
+                  builder: (context, mode, _) {
+                    final isDark = mode == ThemeMode.dark;
+                    return IconButton(
+                      tooltip: isDark
+                          ? 'Ativar modo claro'
+                          : 'Ativar modo escuro',
+                      icon: Icon(
+                        isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
                       ),
+                      onPressed: toggleThemeMode,
+                    );
+                  },
+                ),
+                IconButton(
+                  tooltip: 'Como deixar o GIF mais leve',
+                  onPressed: _showHelp,
+                  icon: const Icon(Icons.help_outline_rounded),
+                ),
+                const SizedBox(width: 6),
+              ],
+            ),
+      body: SafeArea(
+        top: isLandscape,
+        child: Column(
+          children: [
+            if (!isLandscape) _tabBar(),
+            Expanded(
+              child: isLandscape
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 10, 14),
+                            child: SingleChildScrollView(
+                              child: Center(child: _framedPreview()),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(10, 14, 20, 28),
+                            children: sections,
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                      children: [
+                        _framedPreview(),
+                        const SizedBox(height: 18),
+                        ...sections,
+                      ],
                     ),
-                  ),
-                  Expanded(
-                    flex: 5,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(10, 14, 20, 28),
-                      children: optionSections,
-                    ),
-                  ),
-                ],
-              )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-                children: [
-                  _preview(),
-                  const SizedBox(height: 18),
-                  ...optionSections,
-                ],
-              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  /// Seletor com as abas "Ajustar" e "Frame", que alterna o conteúdo
+  /// mostrado abaixo dele.
+  Widget _tabBar() {
+    final theme = Theme.of(context);
+
+    Widget segment(_EditorTab tab, String label) {
+      final selected = _tab == tab;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = tab),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? theme.colorScheme.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: selected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          segment(_EditorTab.ajustar, 'Ajustar'),
+          segment(_EditorTab.frame, 'Frame'),
+        ],
+      ),
+    );
+  }
+
+  /// Seções mostradas na aba "Frame": estilo/cor/espessura/cantos da
+  /// moldura e, quando o estilo escolhido força uma proporção fixa (não é
+  /// "Sem moldura" nem "Bordas finas"), como o vídeo se encaixa nela.
+  List<Widget> _frameSections() {
+    return [
+      _frameStyleSection(),
+      if (_settings.frame.style.targetAspectRatio != null) _contentFitSection(),
+    ];
+  }
+
+  /// Substitui as configurações da moldura, mantendo o resto igual.
+  void _updateFrame(FrameSettings next) {
+    _update(_settings.copyWith(frame: next));
+  }
+
+  /// Envolve [_preview] com a moldura ao vivo (cor, espessura e cantos),
+  /// usando a mesma matemática proporcional de [FrameSettings] usada na
+  /// exportação — por isso a moldura fica nítida em qualquer tamanho de
+  /// tela, sem precisar de nenhum asset de imagem fixo.
+  Widget _framedPreview() {
+    final frame = _settings.frame;
+    if (frame.style == FrameStyle.none) return _preview();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width;
+        final thickness = frame.thicknessFor(width);
+        final outerRadius = frame.cornerRadiusFor(width);
+        final innerRadius = (outerRadius - thickness).clamp(0.0, outerRadius);
+
+        final bordered = Container(
+          color: frame.color,
+          padding: EdgeInsets.all(thickness),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(innerRadius),
+            child: _preview(),
+          ),
+        );
+
+        // Sem "Fundo transparente", a moldura é um cartão retangular comum
+        // (só a janela do conteúdo é arredondada). Com o toggle ligado, o
+        // próprio contorno externo também fica arredondado, revelando o
+        // fundo por trás nos 4 cantos.
+        if (!frame.transparentBackground) return bordered;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(outerRadius),
+          child: bordered,
+        );
+      },
+    );
+  }
+
+  /// Seção "Molduras": estilo (miniaturas), e — quando há moldura — cor,
+  /// espessura, cantos e o switch de fundo transparente.
+  Widget _frameStyleSection() {
+    final theme = Theme.of(context);
+    final frame = _settings.frame;
+
+    return LabeledSection(
+      icon: Icons.smartphone_rounded,
+      title: 'Molduras',
+      value: frame.style.label,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _frameStyleThumbnails(),
+          if (frame.style != FrameStyle.none) ...[
+            const SizedBox(height: 18),
+            _sectionCard(
+              children: [
+                _frameColorRow(),
+                Divider(
+                  height: 17,
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.45,
+                  ),
+                ),
+                _frameThicknessRow(),
+                Divider(
+                  height: 17,
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.45,
+                  ),
+                ),
+                _cornerStyleRow(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _sectionCard(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Fundo transparente'),
+                  subtitle: const Text('Remove o fundo fora da moldura'),
+                  value: frame.transparentBackground,
+                  onChanged: (v) =>
+                      _updateFrame(frame.copyWith(transparentBackground: v)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Linha horizontal com uma miniatura por [FrameStyle], cada uma já
+  /// desenhada com o [FramePainter] real do estilo — a miniatura é a
+  /// prévia, não um ícone genérico.
+  Widget _frameStyleThumbnails() {
+    final selected = _settings.frame.style;
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: FrameStyle.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final style = FrameStyle.values[index];
+          return _frameStyleThumb(style, selected: style == selected);
+        },
+      ),
+    );
+  }
+
+  Widget _frameStyleThumb(FrameStyle style, {required bool selected}) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      key: ValueKey('frameStyleThumb_${style.name}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _selectFrameStyle(style),
+      child: SizedBox(
+        width: 62,
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: _frameStyleGlyph(
+                    style,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                if (selected)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              style.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Miniatura de um [FrameStyle]: para "Sem moldura", um ícone simples;
+  /// para os demais, o próprio [FramePainter] renderizado com os valores
+  /// padrão do estilo e fundo transparente (para os cantos ficarem visíveis
+  /// na miniatura, independente do que o usuário tiver escolhido no
+  /// switch "Fundo transparente").
+  Widget _frameStyleGlyph(FrameStyle style, {required Color color}) {
+    if (style == FrameStyle.none) {
+      return Icon(
+        Icons.crop_free_rounded,
+        size: 22,
+        color: color.withValues(alpha: 0.6),
+      );
+    }
+    return CustomPaint(
+      painter: FramePainter(
+        FrameSettings(
+          style: style,
+          color: color,
+          thicknessAtReference: style.defaultThickness,
+          corner: style.defaultCorner,
+          transparentBackground: true,
+        ),
+      ),
+    );
+  }
+
+  /// Aplica o estilo de moldura escolhido, adotando os padrões de canto e
+  /// espessura sugeridos por ele (o usuário ainda pode ajustar cada um
+  /// depois). Cor, ajuste de conteúdo e fundo transparente são mantidos.
+  void _selectFrameStyle(FrameStyle style) {
+    final current = _settings.frame;
+    _updateFrame(
+      current.copyWith(
+        style: style,
+        corner: style.defaultCorner,
+        thicknessAtReference: style.defaultThickness,
+      ),
+    );
+  }
+
+  /// Paleta de cores oferecida no seletor de "Cor da moldura".
+  static const _frameColorSwatches = <Color>[
+    Color(0xFFC9A8FF),
+    Colors.white,
+    Colors.black,
+    Color(0xFFE57373),
+    Color(0xFF58C78C),
+    Color(0xFFB8B36A),
+    Color(0xFF64B5F6),
+    Color(0xFFE6A15D),
+  ];
+
+  Widget _frameColorRow() {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: _pickFrameColor,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text('Cor da moldura', style: theme.textTheme.bodyMedium),
+            ),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: _settings.frame.color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Abre a folha inferior com a grade de cores para a moldura.
+  void _pickFrameColor() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cor da moldura',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  for (final color in _frameColorSwatches)
+                    _colorSwatchButton(color),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _colorSwatchButton(Color color) {
+    final theme = Theme.of(context);
+    final selected = _settings.frame.color == color;
+    return GestureDetector(
+      onTap: () {
+        _updateFrame(_settings.frame.copyWith(color: color));
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+            width: selected ? 3 : 1.5,
+          ),
+        ),
+        child: selected
+            ? Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: _contrastingIconColor(color),
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// Preto ou branco, o que tiver mais contraste sobre [background] — usado
+  /// no ícone de check sobre os círculos de cor.
+  Color _contrastingIconColor(Color background) =>
+      background.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+
+  Widget _frameThicknessRow() {
+    final theme = Theme.of(context);
+    final frame = _settings.frame;
+    final thickness = frame.thicknessAtReference.clamp(0, 24).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('Espessura', style: theme.textTheme.bodyMedium),
+            ),
+            Text(
+              '${thickness.round()}px',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          min: 0,
+          max: 24,
+          divisions: 24,
+          value: thickness,
+          label: '${thickness.round()}px',
+          onChanged: (v) =>
+              _updateFrame(frame.copyWith(thicknessAtReference: v)),
+        ),
+      ],
+    );
+  }
+
+  Widget _cornerStyleRow() {
+    final theme = Theme.of(context);
+    final selected = _settings.frame.corner;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 8),
+          child: Text('Cantos', style: theme.textTheme.bodyMedium),
+        ),
+        Row(
+          children: [
+            for (final corner in CornerStyle.values) ...[
+              _cornerStyleButton(corner, selected: corner == selected),
+              if (corner != CornerStyle.values.last) const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _cornerStyleButton(CornerStyle corner, {required bool selected}) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _updateFrame(_settings.frame.copyWith(corner: corner)),
+        child: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.colorScheme.primary.withValues(alpha: 0.16)
+                : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(corner.radiusRatio * 18),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Seção "Ajuste do conteúdo": como o vídeo se encaixa quando a
+  /// proporção da moldura escolhida é diferente da do recorte.
+  Widget _contentFitSection() {
+    final selected = _settings.frame.contentFit;
+    return LabeledSection(
+      icon: Icons.aspect_ratio_rounded,
+      title: 'Ajuste do conteúdo',
+      value: selected.label,
+      child: Column(
+        children: [
+          for (final mode in ContentFitMode.values) ...[
+            _contentFitTile(mode, selected: mode == selected),
+            if (mode != ContentFitMode.values.last) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _contentFitTile(ContentFitMode mode, {required bool selected}) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: ValueKey('contentFitTile_${mode.name}'),
+      onTap: () => _updateFrame(_settings.frame.copyWith(contentFit: mode)),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.10)
+              : theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _contentFitIcon(mode),
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mode.label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    mode.subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _contentFitIcon(ContentFitMode mode) => switch (mode) {
+    ContentFitMode.auto => Icons.auto_fix_high_rounded,
+    ContentFitMode.fill => Icons.crop_free_rounded,
+    ContentFitMode.fit => Icons.fit_screen_rounded,
+    ContentFitMode.expand => Icons.open_in_full_rounded,
+  };
 
   /// Área de prévia: vídeo (ou aviso de codec incompatível), overlay de
   /// recorte arrastável e linha do tempo com o trecho selecionado.
@@ -1141,7 +1772,7 @@ class _EditorPageState extends State<EditorPage> {
         .toList();
     if (available.isEmpty) available.add(_video.width);
 
-    final (width, height) = _settings.outputDimensions(_video);
+    final (width, height) = _settings.contentDimensions(_video);
     final selected = available.contains(_settings.targetWidth)
         ? _settings.targetWidth
         : available.last;

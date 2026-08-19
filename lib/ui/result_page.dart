@@ -6,6 +6,7 @@ import '../models/video_info.dart';
 import '../services/ffmpeg_service.dart';
 import '../services/output_service.dart';
 import '../theme.dart';
+import '../theme_controller.dart';
 
 /// Tela final: exibe o GIF gerado, seu peso real (comparado à estimativa) e
 /// as ações de salvar na galeria ou compartilhar.
@@ -71,6 +72,19 @@ class _ResultPageState extends State<ResultPage> {
       appBar: AppBar(
         title: const Text('GIF pronto'),
         actions: [
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeModeNotifier,
+            builder: (context, mode, _) {
+              final isDark = mode == ThemeMode.dark;
+              return IconButton(
+                tooltip: isDark ? 'Ativar modo claro' : 'Ativar modo escuro',
+                icon: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                ),
+                onPressed: toggleThemeMode,
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Compartilhar',
             onPressed: () => _output.share(result.file),

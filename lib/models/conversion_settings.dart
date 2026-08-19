@@ -1,3 +1,4 @@
+import 'frame_settings.dart';
 import 'video_info.dart';
 
 /// Como o GIF distribui o erro de cor ao reduzir a imagem para 256 cores.
@@ -125,6 +126,7 @@ class ConversionSettings {
     this.dither = DitherMode.bayer5,
     this.palette = PaletteMode.global,
     this.loop = true,
+    this.frame = const FrameSettings(),
   });
 
   final double startSeconds;
@@ -137,6 +139,7 @@ class ConversionSettings {
   final DitherMode dither;
   final PaletteMode palette;
   final bool loop;
+  final FrameSettings frame;
 
   /// Presets exibidos no editor redesenhado.
   static const fpsOptions = <int>[5, 8, 10, 12, 15, 20, 24];
@@ -162,9 +165,10 @@ class ConversionSettings {
     return n < 1 ? 1 : n;
   }
 
-  /// Largura/altura finais do GIF, a partir da largura alvo e mantendo a
-  /// proporção da área recortada (ou do vídeo inteiro, sem recorte).
-  (int, int) outputDimensions(VideoInfo video) {
+  /// Largura/altura do vídeo já cortado e escalado pela largura alvo,
+  /// mantendo a proporção da área recortada (ou do vídeo inteiro, sem
+  /// recorte) — a área de conteúdo, antes de qualquer moldura.
+  (int, int) contentDimensions(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     final srcHeight = crop?.height ?? video.height;
     if (srcWidth <= 0 || srcHeight <= 0) return (2, 2);
@@ -179,12 +183,58 @@ class ConversionSettings {
     return (w < 2 ? 2 : w, h < 2 ? 2 : h);
   }
 
+  /// Largura/altura/espessura (em pixels) da área onde o vídeo aparece
+  /// dentro da moldura, antes de somar a borda — compartilhado entre
+  /// [outputDimensions] e o serviço de FFmpeg (que usa os mesmos números
+  /// para montar os filtros de composição), para as duas contas nunca
+  /// ficarem fora de sincronia.
+  (int width, int height, double thickness) frameAreaDimensions(
+    VideoInfo video,
+  ) {
+    final (contentWidth, contentHeight) = contentDimensions(video);
+    final aspect =
+        frame.style.targetAspectRatio ?? (contentWidth / contentHeight);
+    final areaWidth = contentWidth.toDouble();
+    final areaHeight = areaWidth / aspect;
+    return (
+      areaWidth.round(),
+      _evenFromDouble(areaHeight),
+      frame.thicknessFor(areaWidth),
+    );
+  }
+
+  /// Largura/altura finais do GIF. Sem moldura, é exatamente a área de
+  /// conteúdo ([contentDimensions]). Com moldura, soma o espaço da borda
+  /// (e, quando o estilo força uma proporção fixa — celular, story —, a
+  /// área de conteúdo é recalculada nessa proporção antes de somar a
+  /// borda), sempre proporcional ao tamanho de saída para não perder
+  /// nitidez em nenhuma resolução.
+  (int, int) outputDimensions(VideoInfo video) {
+    final (contentWidth, contentHeight) = contentDimensions(video);
+    if (frame.style == FrameStyle.none) return (contentWidth, contentHeight);
+
+    final (areaWidth, areaHeight, thickness) = frameAreaDimensions(video);
+    final w = _evenFromDouble(areaWidth + thickness * 2);
+    final h = _evenFromDouble(areaHeight + thickness * 2);
+    return (w < 2 ? 2 : w, h < 2 ? 2 : h);
+  }
+
+  /// Arredonda para o inteiro par mais próximo, exigido pelos filtros de
+  /// crop/scale do FFmpeg.
+  static int _evenFromDouble(double value) {
+    final rounded = value.round();
+    return rounded - (rounded % 2);
+  }
+
   /// Quanto a imagem é reduzida em relação ao tamanho de origem (recortado),
-  /// usado pelo estimador de tamanho para ponderar o efeito da escala.
+  /// usado pelo estimador de tamanho para ponderar o efeito da escala. Usa
+  /// [contentDimensions] (não [outputDimensions]) para não misturar o
+  /// espaço ocupado pela moldura — praticamente estática — no fator de
+  /// escala calibrado a partir do conteúdo do vídeo.
   double scaleRatio(VideoInfo video) {
     final srcWidth = crop?.width ?? video.width;
     if (srcWidth <= 0) return 1;
-    final (w, _) = outputDimensions(video);
+    final (w, _) = contentDimensions(video);
     return (w / srcWidth).clamp(0.05, 1.0).toDouble();
   }
 
@@ -202,6 +252,7 @@ class ConversionSettings {
     DitherMode? dither,
     PaletteMode? palette,
     bool? loop,
+    FrameSettings? frame,
   }) {
     return ConversionSettings(
       startSeconds: startSeconds ?? this.startSeconds,
@@ -214,6 +265,7 @@ class ConversionSettings {
       dither: dither ?? this.dither,
       palette: palette ?? this.palette,
       loop: loop ?? this.loop,
+      frame: frame ?? this.frame,
     );
   }
 

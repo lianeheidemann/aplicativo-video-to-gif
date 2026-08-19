@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show Size;
 
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit_config.dart';
@@ -7,11 +8,14 @@ import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 import 'package:ffmpeg_kit_flutter_new_min/statistics.dart';
 import 'package:ffmpeg_kit_flutter_new_min/stream_information.dart';
+import 'package:flutter/painting.dart' show Color;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/conversion_settings.dart';
+import '../models/frame_settings.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
+import '../ui/widgets/frame_painter.dart';
 import 'size_estimator.dart';
 
 /// Resultado de uma conversão bem-sucedida: o arquivo GIF e seus metadados.
@@ -197,20 +201,150 @@ class FfmpegService {
 
     parts.add('fps=${settings.fps}');
 
-    final (width, height) = settings.outputDimensions(video);
+    final (width, height) = settings.contentDimensions(video);
     parts.add('scale=$width:$height:flags=lanczos');
 
     return parts.join(',');
   }
 
+  /// Grafo de filtro completo pronto para `-lavfi`: [input] (ex.: `0:v`) até
+  /// [output], já com a moldura aplicada — conteúdo ([buildVideoFilter])
+  /// ajustado à área da moldura conforme [ConversionSettings.frame]'s
+  /// modo de ajuste, depois preenchido com a borda até o tamanho final
+  /// ([ConversionSettings.outputDimensions]). Só deve ser chamado quando
+  /// há moldura ativa (`frame.style != FrameStyle.none`).
+  String _framedGraph(
+    ConversionSettings settings,
+    VideoInfo video, {
+    required String input,
+    required String output,
+  }) {
+    final contentFilter = buildVideoFilter(settings, video);
+    final frame = settings.frame;
+
+    final (contentWidth, contentHeight) = settings.contentDimensions(video);
+    final (areaWidth, areaHeight, thickness) = settings.frameAreaDimensions(
+      video,
+    );
+    final (canvasWidth, canvasHeight) = settings.outputDimensions(video);
+    final colorHex = _ffmpegColor(frame.color);
+    final thicknessPx = thickness.round();
+
+    final parts = <String>['[$input]$contentFilter[content]'];
+
+    if (contentWidth == areaWidth && contentHeight == areaHeight) {
+      parts.add('[content]copy[fitted]');
+    } else {
+      final fit = _resolveFitMode(
+        frame.contentFit,
+        contentWidth,
+        contentHeight,
+        areaWidth,
+        areaHeight,
+      );
+      switch (fit) {
+        case ContentFitMode.fill:
+          parts.add(
+            '[content]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=increase:flags=lanczos,'
+            'crop=$areaWidth:$areaHeight[fitted]',
+          );
+        case ContentFitMode.expand:
+          // Fundo: cobre a área toda e desfoca; primeiro plano: cabe
+          // inteiro, sem cortar; um sobre o outro, centralizado.
+          parts.add('[content]split=2[bg][fg]');
+          parts.add(
+            '[bg]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=increase:flags=lanczos,'
+            'crop=$areaWidth:$areaHeight,boxblur=12:3[bg2]',
+          );
+          parts.add(
+            '[fg]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=decrease:flags=lanczos[fg2]',
+          );
+          parts.add('[bg2][fg2]overlay=(W-w)/2:(H-h)/2[fitted]');
+        case ContentFitMode.auto:
+        case ContentFitMode.fit:
+          parts.add(
+            '[content]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=decrease:flags=lanczos,'
+            'pad=$areaWidth:$areaHeight:(ow-iw)/2:(oh-ih)/2:'
+            'color=$colorHex[fitted]',
+          );
+      }
+    }
+
+    parts.add(
+      '[fitted]pad=$canvasWidth:$canvasHeight:$thicknessPx:$thicknessPx:'
+      'color=$colorHex[$output]',
+    );
+
+    return parts.join(';');
+  }
+
+  /// Resolve "Ajuste automático" para "Preencher" ou "Encaixar": se a
+  /// proporção do conteúdo já está perto da proporção da área (pouco corte
+  /// necessário), preenche sem barras; se está muito diferente, encaixa
+  /// para não cortar demais.
+  ContentFitMode _resolveFitMode(
+    ContentFitMode mode,
+    int contentWidth,
+    int contentHeight,
+    int areaWidth,
+    int areaHeight,
+  ) {
+    if (mode != ContentFitMode.auto) return mode;
+    final contentAspect = contentWidth / contentHeight;
+    final areaAspect = areaWidth / areaHeight;
+    final ratio = contentAspect / areaAspect;
+    return (ratio >= 0.8 && ratio <= 1.25)
+        ? ContentFitMode.fill
+        : ContentFitMode.fit;
+  }
+
+  /// Cor no formato aceito pelos filtros do FFmpeg (`0xRRGGBB`).
+  String _ffmpegColor(Color color) {
+    final rgb = (color.toARGB32() & 0x00FFFFFF).toRadixString(16);
+    return '0x${rgb.padLeft(6, '0')}';
+  }
+
   /// Monta os argumentos do FFmpeg para a passagem 1: gera o arquivo de
-  /// paleta de cores (PNG) a partir do trecho e filtros selecionados.
+  /// paleta de cores (PNG) a partir do trecho e filtros selecionados. Com
+  /// moldura, [maskPath] (PNG branco/preto do formato arredondado, gerado
+  /// por [rasterizeCornerMask]) recorta os cantos via `alphamerge` antes de
+  /// gerar a paleta — assim a transparência participa da paleta desde já.
   List<String> _paletteGenArgs({
     required VideoInfo video,
     required ConversionSettings settings,
     required String palettePath,
+    String? maskPath,
   }) {
-    final filter = buildVideoFilter(settings, video);
+    if (settings.frame.style == FrameStyle.none) {
+      final filter = buildVideoFilter(settings, video);
+      return [
+        '-y',
+        '-ss',
+        _seconds(settings.startSeconds),
+        '-t',
+        _seconds(settings.sourceDurationSeconds),
+        '-i',
+        video.path,
+        '-vf',
+        '$filter,palettegen=max_colors=${settings.colors}'
+            ':stats_mode=${settings.palette.statsMode}',
+        '-frames:v',
+        '1',
+        palettePath,
+      ];
+    }
+
+    final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
+    final reserve = maskPath != null ? ':reserve_transparent=1' : '';
+    final paletteLabel = maskPath != null ? 'alpha' : 'framed';
+    final maskStage = maskPath != null
+        ? ';[framed][1:v]alphamerge[$paletteLabel]'
+        : '';
+
     return [
       '-y',
       '-ss',
@@ -219,9 +353,11 @@ class FfmpegService {
       _seconds(settings.sourceDurationSeconds),
       '-i',
       video.path,
-      '-vf',
-      '$filter,palettegen=max_colors=${settings.colors}'
-          ':stats_mode=${settings.palette.statsMode}',
+      if (maskPath != null) ...['-loop', '1', '-i', maskPath],
+      '-lavfi',
+      '$graph$maskStage;'
+          '[$paletteLabel]palettegen=max_colors=${settings.colors}'
+          ':stats_mode=${settings.palette.statsMode}$reserve',
       '-frames:v',
       '1',
       palettePath,
@@ -230,36 +366,104 @@ class FfmpegService {
 
   /// Monta os argumentos do FFmpeg para a passagem 2: aplica a paleta
   /// gerada na passagem 1 ao vídeo e grava o GIF final (ou uma amostra,
-  /// se [frameLimit] for informado).
+  /// se [frameLimit] for informado). Com moldura, [maskPath] recorta os
+  /// cantos do mesmo jeito que em [_paletteGenArgs], e `alpha_threshold`
+  /// garante que os pixels transparentes da máscara virem o índice
+  /// transparente reservado na paleta.
   List<String> _paletteUseArgs({
     required VideoInfo video,
     required ConversionSettings settings,
     required String palettePath,
     required String outputPath,
+    String? maskPath,
     int? frameLimit,
   }) {
-    final filter = buildVideoFilter(settings, video);
-
     // Com paleta por quadro, o paletteuse precisa saber que a tabela de cores
     // muda ao longo do tempo (new=1).
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
 
+    if (settings.frame.style == FrameStyle.none) {
+      final filter = buildVideoFilter(settings, video);
+      return [
+        '-y',
+        '-ss', _seconds(settings.startSeconds),
+        '-t', _seconds(settings.sourceDurationSeconds),
+        '-i', video.path,
+        '-i', palettePath,
+        '-lavfi',
+        '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
+            ':diff_mode=rectangle$newPalette',
+        // 0 = repetir para sempre; -1 = tocar uma vez só.
+        '-loop', settings.loop ? '0' : '-1',
+        '-an',
+        if (frameLimit != null) ...['-frames:v', '$frameLimit'],
+        '-f', 'gif',
+        outputPath,
+      ];
+    }
+
+    final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
+    final useLabel = maskPath != null ? 'alpha' : 'framed';
+    final maskStage = maskPath != null
+        ? ';[framed][2:v]alphamerge[$useLabel]'
+        : '';
+    final alphaThreshold = maskPath != null ? ':alpha_threshold=128' : '';
+
     return [
       '-y',
-      '-ss', _seconds(settings.startSeconds),
-      '-t', _seconds(settings.sourceDurationSeconds),
-      '-i', video.path,
-      '-i', palettePath,
+      '-ss',
+      _seconds(settings.startSeconds),
+      '-t',
+      _seconds(settings.sourceDurationSeconds),
+      '-i',
+      video.path,
+      '-i',
+      palettePath,
+      if (maskPath != null) ...['-loop', '1', '-i', maskPath],
       '-lavfi',
-      '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
-          ':diff_mode=rectangle$newPalette',
-      // 0 = repetir para sempre; -1 = tocar uma vez só.
-      '-loop', settings.loop ? '0' : '-1',
+      '$graph$maskStage;'
+          '[$useLabel][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
+          ':diff_mode=rectangle$newPalette$alphaThreshold',
+      '-loop',
+      settings.loop ? '0' : '-1',
       '-an',
       if (frameLimit != null) ...['-frames:v', '$frameLimit'],
-      '-f', 'gif',
+      '-f',
+      'gif',
       outputPath,
     ];
+  }
+
+  /// Caminho do PNG de máscara (gerado por [rasterizeCornerMask]) para
+  /// [settings], ou `null` se não há moldura ou "Fundo transparente" está
+  /// desligado. As dimensões não dependem do trecho de tempo, então uma
+  /// única máscara serve tanto a conversão final quanto todas as amostras
+  /// de calibração.
+  Future<String?> _prepareMaskFile({
+    required ConversionSettings settings,
+    required VideoInfo video,
+    required Directory dir,
+    required String stamp,
+  }) async {
+    final frame = settings.frame;
+    if (frame.style == FrameStyle.none || !frame.transparentBackground) {
+      return null;
+    }
+
+    final (canvasWidth, canvasHeight) = settings.outputDimensions(video);
+    final outerRadius = FrameGeometry.of(
+      Size(canvasWidth.toDouble(), canvasHeight.toDouble()),
+      frame,
+    ).outerRadius;
+
+    final bytes = await rasterizeCornerMask(
+      canvasWidth,
+      canvasHeight,
+      outerRadius,
+    );
+    final path = '${dir.path}/mascara_$stamp.png';
+    await File(path).writeAsBytes(bytes);
+    return path;
   }
 
   String _seconds(double value) => value.toStringAsFixed(3);
@@ -287,8 +491,16 @@ class FfmpegService {
     final outputPath = '${dir.path}/gif_$stamp.gif';
 
     final totalMs = settings.outputDurationSeconds * 1000;
+    String? maskPath;
 
     try {
+      maskPath = await _prepareMaskFile(
+        settings: settings,
+        video: video,
+        dir: dir,
+        stamp: '$stamp',
+      );
+
       // A geração da paleta lê o trecho inteiro, então vale cerca de um terço
       // do tempo total. Repartimos a barra de progresso nessa proporção.
       await _run(
@@ -296,6 +508,7 @@ class FfmpegService {
           video: video,
           settings: settings,
           palettePath: palettePath,
+          maskPath: maskPath,
         ),
         onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
         step: 'geração da paleta',
@@ -309,6 +522,7 @@ class FfmpegService {
           settings: settings,
           palettePath: palettePath,
           outputPath: outputPath,
+          maskPath: maskPath,
         ),
         onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
         step: 'montagem do GIF',
@@ -333,6 +547,7 @@ class FfmpegService {
     } finally {
       _activeSessionId = null;
       _deleteQuietly(palettePath);
+      if (maskPath != null) _deleteQuietly(maskPath);
     }
   }
 
@@ -431,71 +646,87 @@ class FfmpegService {
     final dir = await getTemporaryDirectory();
     final profiles = <ComplexityProfile>[];
 
-    for (var i = 0; i < positions.length; i++) {
-      final sample = settings.copyWith(
-        startSeconds: positions[i],
-        endSeconds: positions[i] + window,
-      );
+    // As dimensões (e portanto a máscara) não dependem do trecho de tempo,
+    // então uma única máscara serve todas as amostras desta calibração.
+    final maskPath = await _prepareMaskFile(
+      settings: settings,
+      video: video,
+      dir: dir,
+      stamp: 'calib_${DateTime.now().millisecondsSinceEpoch}',
+    );
 
-      final stamp = '${DateTime.now().millisecondsSinceEpoch}_$i';
-      final palettePath = '${dir.path}/amostra_$stamp.png';
-      final gifPath = '${dir.path}/amostra_$stamp.gif';
-      final firstFramePath = '${dir.path}/amostra_${stamp}_q1.gif';
-
-      try {
-        await _run(
-          _paletteGenArgs(
-            video: video,
-            settings: sample,
-            palettePath: palettePath,
-          ),
-          step: 'medição',
-        );
-        await _run(
-          _paletteUseArgs(
-            video: video,
-            settings: sample,
-            palettePath: palettePath,
-            outputPath: gifPath,
-          ),
-          step: 'medição',
-        );
-        await _run(
-          _paletteUseArgs(
-            video: video,
-            settings: sample,
-            palettePath: palettePath,
-            outputPath: firstFramePath,
-            frameLimit: 1,
-          ),
-          step: 'medição',
+    try {
+      for (var i = 0; i < positions.length; i++) {
+        final sample = settings.copyWith(
+          startSeconds: positions[i],
+          endSeconds: positions[i] + window,
         );
 
-        final gif = File(gifPath);
-        final firstFrame = File(firstFramePath);
-        if (gif.existsSync() &&
-            gif.lengthSync() > 0 &&
-            firstFrame.existsSync() &&
-            firstFrame.lengthSync() > 0) {
-          profiles.add(
-            SizeEstimator.calibrate(
-              measuredBytes: gif.lengthSync(),
-              firstFrameBytes: firstFrame.lengthSync(),
-              sampleSettings: sample,
+        final stamp = '${DateTime.now().millisecondsSinceEpoch}_$i';
+        final palettePath = '${dir.path}/amostra_$stamp.png';
+        final gifPath = '${dir.path}/amostra_$stamp.gif';
+        final firstFramePath = '${dir.path}/amostra_${stamp}_q1.gif';
+
+        try {
+          await _run(
+            _paletteGenArgs(
               video: video,
+              settings: sample,
+              palettePath: palettePath,
+              maskPath: maskPath,
             ),
+            step: 'medição',
           );
+          await _run(
+            _paletteUseArgs(
+              video: video,
+              settings: sample,
+              palettePath: palettePath,
+              outputPath: gifPath,
+              maskPath: maskPath,
+            ),
+            step: 'medição',
+          );
+          await _run(
+            _paletteUseArgs(
+              video: video,
+              settings: sample,
+              palettePath: palettePath,
+              outputPath: firstFramePath,
+              maskPath: maskPath,
+              frameLimit: 1,
+            ),
+            step: 'medição',
+          );
+
+          final gif = File(gifPath);
+          final firstFrame = File(firstFramePath);
+          if (gif.existsSync() &&
+              gif.lengthSync() > 0 &&
+              firstFrame.existsSync() &&
+              firstFrame.lengthSync() > 0) {
+            profiles.add(
+              SizeEstimator.calibrate(
+                measuredBytes: gif.lengthSync(),
+                firstFrameBytes: firstFrame.lengthSync(),
+                sampleSettings: sample,
+                video: video,
+              ),
+            );
+          }
+        } on FfmpegException {
+          // Uma amostra que falha (fim do arquivo, quadro corrompido) não
+          // deve derrubar a medição inteira — seguimos com as que deram certo.
+        } finally {
+          _activeSessionId = null;
+          _deleteQuietly(palettePath);
+          _deleteQuietly(gifPath);
+          _deleteQuietly(firstFramePath);
+          onProgress?.call((i + 1) / positions.length);
         }
-      } on FfmpegException {
-        // Uma amostra que falha (fim do arquivo, quadro corrompido) não
-        // deve derrubar a medição inteira — seguimos com as que deram certo.
-      } finally {
-        _activeSessionId = null;
-        _deleteQuietly(palettePath);
-        _deleteQuietly(gifPath);
-        _deleteQuietly(firstFramePath);
-        onProgress?.call((i + 1) / positions.length);
       }
+    } finally {
+      if (maskPath != null) _deleteQuietly(maskPath);
     }
 
     if (profiles.isEmpty) return SizeEstimator.profileFromSource(video);

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../models/conversion_settings.dart';
+import '../models/frame_settings.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
 
@@ -99,6 +100,21 @@ class SizeEstimator {
   /// Cabeçalho do GIF, bloco de aplicação (loop) e tabela de cores.
   static int overheadBytes(int colors) => 800 + 3 * colors;
 
+  /// Quantos pixels do canvas final são a borda da moldura (a área fora da
+  /// "área de conteúdo" onde o vídeo aparece). É praticamente estática de um
+  /// quadro para o outro — o FFmpeg (`diff_mode=rectangle`) só regrava o
+  /// retângulo que mudou —, então NÃO deve ser multiplicada pelos fatores de
+  /// movimento/configuração em [bpp]; só pesa uma vez, no quadro-chave (ver
+  /// [estimate]).
+  static int _frameBorderPixels(ConversionSettings settings, VideoInfo video) {
+    if (settings.frame.style == FrameStyle.none) return 0;
+    final (canvasWidth, canvasHeight) = settings.outputDimensions(video);
+    final (areaWidth, areaHeight, _) = settings.frameAreaDimensions(video);
+    final canvasPixels = canvasWidth * canvasHeight;
+    final areaPixels = areaWidth * areaHeight;
+    return (canvasPixels - areaPixels).clamp(0, canvasPixels);
+  }
+
   // --------------------------------------------------------------------
   // Fatores de configuração
   // --------------------------------------------------------------------
@@ -181,6 +197,7 @@ class SizeEstimator {
     final (width, height) = settings.outputDimensions(video);
     final frames = settings.frameCount;
     final pixels = width * height;
+    final contentPixels = pixels - _frameBorderPixels(settings, video);
 
     final bpp = (profile.bytesPerPixel * settingsFactor(settings, video))
         .clamp(_minBpp, _maxBpp)
@@ -190,7 +207,10 @@ class SizeEstimator {
             .clamp(_minKeyBpp, _maxKeyBpp)
             .toDouble();
 
-    final payload = pixels * keyBpp + (frames - 1) * pixels * bpp;
+    // O quadro-chave é uma imagem inteira: paga por todos os pixels do
+    // canvas, moldura incluída. Os quadros seguintes só pagam pela área de
+    // conteúdo, que é a única parte que muda de um quadro para o outro.
+    final payload = pixels * keyBpp + (frames - 1) * contentPixels * bpp;
     final total = overheadBytes(settings.colors) + payload;
 
     return SizeEstimate(
@@ -236,6 +256,11 @@ class SizeEstimator {
     final pixels = width * height;
     if (pixels <= 0 || frames < 2) return ComplexityProfile.fallback;
 
+    final borderPixels = _frameBorderPixels(sampleSettings, video);
+    final contentPixels = pixels - borderPixels <= 0
+        ? pixels
+        : pixels - borderPixels;
+
     final overhead = overheadBytes(sampleSettings.colors);
     final keyPayload = firstFrameBytes - overhead;
     final deltaPayload = measuredBytes - firstFrameBytes;
@@ -245,7 +270,7 @@ class SizeEstimator {
         keyPayload / pixels / keySettingsFactor(sampleSettings, video);
     final deltaBpp =
         deltaPayload /
-        ((frames - 1) * pixels) /
+        ((frames - 1) * contentPixels) /
         settingsFactor(sampleSettings, video);
 
     return ComplexityProfile(
