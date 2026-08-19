@@ -373,17 +373,23 @@ class FfmpegService {
       final filter = buildVideoFilter(settings, video);
       return [
         '-y',
-        '-ss', _seconds(settings.startSeconds),
-        '-t', _seconds(settings.sourceDurationSeconds),
-        '-i', video.path,
-        '-i', palettePath,
+        '-ss',
+        _seconds(settings.startSeconds),
+        '-t',
+        _seconds(settings.sourceDurationSeconds),
+        '-i',
+        video.path,
+        '-i',
+        palettePath,
         '-lavfi',
         '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
             ':diff_mode=rectangle$newPalette',
-        '-loop', settings.loop ? '0' : '-1',
+        '-loop',
+        settings.loop ? '0' : '-1',
         '-an',
         if (frameLimit != null) ...['-frames:v', '$frameLimit'],
-        '-f', 'gif',
+        '-f',
+        'gif',
         outputPath,
       ];
     }
@@ -561,8 +567,7 @@ class FfmpegService {
             palettePath: palettePath,
             outputPath: outputPath,
           ),
-          onTimeMs: (ms) =>
-              onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
+          onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
           step: 'montagem do GIF',
         );
       }
@@ -822,7 +827,6 @@ class FfmpegService {
     try {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
-    } on FileSystemException {
-    }
+    } on FileSystemException {}
   }
 }
