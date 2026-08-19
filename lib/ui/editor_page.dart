@@ -861,8 +861,7 @@ class _EditorPageState extends State<EditorPage> {
       title: 'Moldura',
       value: _settings.frameStyle.label,
       hint:
-          'Adiciona uma moldura estilo celular ao redor do GIF, com o fundo '
-          'fora dela transparente.',
+          'Adiciona uma moldura estilo celular ao redor do GIF, com o fundo fora dela transparente.',
       tip: border == 0
           ? null
           : 'Tamanho final com moldura: $canvasWidth×$canvasHeight px.',
@@ -870,10 +869,14 @@ class _EditorPageState extends State<EditorPage> {
         options: FrameStyle.values,
         selected: _settings.frameStyle,
         labelBuilder: (style) => style.label,
-        onSelected: (style) =>
-            _update(_settings.copyWith(frameStyle: style)),
+        onSelected: _selectFrameStyle,
       ),
     );
+  }
+
+  /// Aplica o estilo de moldura escolhido.
+  void _selectFrameStyle(FrameStyle style) {
+    _update(_settings.copyWith(frameStyle: style));
   }
 
   /// Aplica o preset de proporção escolhido: cria um recorte customizado,
