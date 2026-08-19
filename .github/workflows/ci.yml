@@ -37,12 +37,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: dart format --output=none --set-exit-if-changed lib test
 
-      - name: Mostrar diff de formatação
-        if: ${{ always() }}
-        run: |
-          dart format lib/ui/widgets/size_panel.dart test/size_panel_test.dart
-          git diff -- lib/ui/widgets/size_panel.dart test/size_panel_test.dart
-
       - name: Análise estática
         if: ${{ !cancelled() }}
         run: flutter analyze
