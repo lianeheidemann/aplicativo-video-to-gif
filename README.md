@@ -43,7 +43,7 @@ spend time converting it**.
 
 ## Interface
 
-<img src="assets/image/interface/---.png"/>
+<img src="assets/image/-----.png"/>
 
 ## The problem it solves
 
