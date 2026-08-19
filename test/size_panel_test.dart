@@ -83,7 +83,7 @@ void main() {
       await _pumpPanel(tester, estimate: _estimate(bytes: 3 * 1024 * 1024));
 
       expect(find.text('3.0 MB'), findsOneWidget);
-      expect(find.text('Moderado'), findsWidgets);
+      expect(find.text('Leve'), findsWidgets);
       expect(find.text(_summary), findsOneWidget);
     });
 
