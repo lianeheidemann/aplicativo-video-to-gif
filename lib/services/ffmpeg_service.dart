@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/conversion_settings.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
+import 'frame_render_service.dart';
 import 'size_estimator.dart';
 
 /// Resultado de uma conversão bem-sucedida: o arquivo GIF e seus metadados.
@@ -60,6 +61,7 @@ class FfmpegService {
 
   int? _activeSessionId;
   bool _cancelled = false;
+  final FrameRenderService _frameRenderService = FrameRenderService();
 
   // ------------------------------------------------------------------
   // Metadados
@@ -203,14 +205,63 @@ class FfmpegService {
     return parts.join(',');
   }
 
+  /// Grafo que compõe o vídeo já filtrado (rótulo `[vid]`) com o PNG da
+  /// moldura (segundo input, `[1:v]`), produzindo `[comp]`: o vídeo é
+  /// colocado sobre um canvas transparente do tamanho final (janela de
+  /// conteúdo + borda) na posição certa, e a moldura é sobreposta por cima —
+  /// suas áreas transparentes (fora do "celular" e na janela de conteúdo)
+  /// deixam o vídeo (ou o fundo, nos cantos) aparecer.
+  String _compositeFrameGraph({
+    required String videoFilter,
+    required int canvasWidth,
+    required int canvasHeight,
+    required int border,
+  }) {
+    return '[0:v]$videoFilter,format=rgba,'
+        'pad=$canvasWidth:$canvasHeight:$border:$border:color=black@0.0[vid];'
+        '[1:v]format=rgba[frm];'
+        '[vid][frm]overlay=0:0[comp]';
+  }
+
   /// Monta os argumentos do FFmpeg para a passagem 1: gera o arquivo de
-  /// paleta de cores (PNG) a partir do trecho e filtros selecionados.
+  /// paleta de cores (PNG) a partir do trecho e filtros selecionados. Se
+  /// [framePngPath] for informado, a paleta já reserva um índice
+  /// transparente para a moldura/canto vazado.
   List<String> _paletteGenArgs({
     required VideoInfo video,
     required ConversionSettings settings,
     required String palettePath,
+    String? framePngPath,
   }) {
     final filter = buildVideoFilter(settings, video);
+
+    if (framePngPath == null) {
+      return [
+        '-y',
+        '-ss',
+        _seconds(settings.startSeconds),
+        '-t',
+        _seconds(settings.sourceDurationSeconds),
+        '-i',
+        video.path,
+        '-vf',
+        '$filter,palettegen=max_colors=${settings.colors}'
+            ':stats_mode=${settings.palette.statsMode}',
+        '-frames:v',
+        '1',
+        palettePath,
+      ];
+    }
+
+    final (canvasWidth, canvasHeight) = settings.canvasDimensions(video);
+    final border = settings.frameBorderPx(video);
+    final composite = _compositeFrameGraph(
+      videoFilter: filter,
+      canvasWidth: canvasWidth,
+      canvasHeight: canvasHeight,
+      border: border,
+    );
+
     return [
       '-y',
       '-ss',
@@ -219,9 +270,13 @@ class FfmpegService {
       _seconds(settings.sourceDurationSeconds),
       '-i',
       video.path,
-      '-vf',
-      '$filter,palettegen=max_colors=${settings.colors}'
-          ':stats_mode=${settings.palette.statsMode}',
+      '-loop',
+      '1',
+      '-i',
+      framePngPath,
+      '-filter_complex',
+      '$composite;[comp]palettegen=max_colors=${settings.colors}'
+          ':stats_mode=${settings.palette.statsMode}:reserve_transparent=1',
       '-frames:v',
       '1',
       palettePath,
@@ -230,13 +285,16 @@ class FfmpegService {
 
   /// Monta os argumentos do FFmpeg para a passagem 2: aplica a paleta
   /// gerada na passagem 1 ao vídeo e grava o GIF final (ou uma amostra,
-  /// se [frameLimit] for informado).
+  /// se [frameLimit] for informado). Se [framePngPath] for informado, a
+  /// moldura é composta antes de aplicar a paleta e o `paletteuse` preserva
+  /// o canal alpha resultante (transparência binária do GIF).
   List<String> _paletteUseArgs({
     required VideoInfo video,
     required ConversionSettings settings,
     required String palettePath,
     required String outputPath,
     int? frameLimit,
+    String? framePngPath,
   }) {
     final filter = buildVideoFilter(settings, video);
 
@@ -244,15 +302,45 @@ class FfmpegService {
     // muda ao longo do tempo (new=1).
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
 
+    if (framePngPath == null) {
+      return [
+        '-y',
+        '-ss', _seconds(settings.startSeconds),
+        '-t', _seconds(settings.sourceDurationSeconds),
+        '-i', video.path,
+        '-i', palettePath,
+        '-lavfi',
+        '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
+            ':diff_mode=rectangle$newPalette',
+        // 0 = repetir para sempre; -1 = tocar uma vez só.
+        '-loop', settings.loop ? '0' : '-1',
+        '-an',
+        if (frameLimit != null) ...['-frames:v', '$frameLimit'],
+        '-f', 'gif',
+        outputPath,
+      ];
+    }
+
+    final (canvasWidth, canvasHeight) = settings.canvasDimensions(video);
+    final border = settings.frameBorderPx(video);
+    final composite = _compositeFrameGraph(
+      videoFilter: filter,
+      canvasWidth: canvasWidth,
+      canvasHeight: canvasHeight,
+      border: border,
+    );
+
     return [
       '-y',
       '-ss', _seconds(settings.startSeconds),
       '-t', _seconds(settings.sourceDurationSeconds),
       '-i', video.path,
+      '-loop', '1',
+      '-i', framePngPath,
       '-i', palettePath,
-      '-lavfi',
-      '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
-          ':diff_mode=rectangle$newPalette',
+      '-filter_complex',
+      '$composite;[comp][2:v]paletteuse=dither=${settings.dither.ffmpegValue}'
+          ':diff_mode=rectangle$newPalette:alpha_threshold=128',
       // 0 = repetir para sempre; -1 = tocar uma vez só.
       '-loop', settings.loop ? '0' : '-1',
       '-an',
@@ -288,7 +376,19 @@ class FfmpegService {
 
     final totalMs = settings.outputDurationSeconds * 1000;
 
+    String? framePngPath;
     try {
+      if (settings.frameStyle != FrameStyle.none) {
+        final (canvasWidth, canvasHeight) = settings.canvasDimensions(video);
+        final frameFile = await _frameRenderService.renderFramePng(
+          style: settings.frameStyle,
+          borderPx: settings.frameBorderPx(video),
+          width: canvasWidth,
+          height: canvasHeight,
+        );
+        framePngPath = frameFile.path;
+      }
+
       // A geração da paleta lê o trecho inteiro, então vale cerca de um terço
       // do tempo total. Repartimos a barra de progresso nessa proporção.
       await _run(
@@ -296,6 +396,7 @@ class FfmpegService {
           video: video,
           settings: settings,
           palettePath: palettePath,
+          framePngPath: framePngPath,
         ),
         onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
         step: 'geração da paleta',
@@ -309,6 +410,7 @@ class FfmpegService {
           settings: settings,
           palettePath: palettePath,
           outputPath: outputPath,
+          framePngPath: framePngPath,
         ),
         onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
         step: 'montagem do GIF',
@@ -321,7 +423,7 @@ class FfmpegService {
         throw FfmpegException('O GIF saiu vazio. Tente outro trecho do vídeo.');
       }
 
-      final (width, height) = settings.outputDimensions(video);
+      final (width, height) = settings.canvasDimensions(video);
       return ConversionResult(
         file: output,
         bytes: output.lengthSync(),
@@ -333,6 +435,7 @@ class FfmpegService {
     } finally {
       _activeSessionId = null;
       _deleteQuietly(palettePath);
+      if (framePngPath != null) _deleteQuietly(framePngPath);
     }
   }
 

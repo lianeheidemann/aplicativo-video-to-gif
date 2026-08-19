@@ -87,14 +87,24 @@ class _ResultPageState extends State<ResultPage> {
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 color: theme.colorScheme.surfaceContainerHigh,
-                child: Center(
-                  // Image.file anima GIFs automaticamente, então isso já é
-                  // uma prévia real do resultado.
-                  child: Image.file(
-                    result.file,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.medium,
-                  ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Com moldura, o GIF tem cantos transparentes — um
+                    // fundo xadrez deixa isso visível na prévia (senão só
+                    // apareceria a cor do Container por trás).
+                    if (widget.settings.frameStyle != FrameStyle.none)
+                      const Positioned.fill(
+                        child: CustomPaint(painter: _CheckerboardPainter()),
+                      ),
+                    // Image.file anima GIFs automaticamente, então isso já é
+                    // uma prévia real do resultado.
+                    Image.file(
+                      result.file,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.medium,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -296,4 +306,29 @@ class _ResultPageState extends State<ResultPage> {
     final percent = ((actual - estimated) / estimated * 100).round();
     return percent > 0 ? '+$percent%' : '$percent%';
   }
+}
+
+/// Fundo em xadrez usado atrás da prévia do GIF, para deixar visível a
+/// transparência trazida pela moldura.
+class _CheckerboardPainter extends CustomPainter {
+  const _CheckerboardPainter();
+
+  static const _tile = 12.0;
+  static const _light = Color(0xFFE0E0E0);
+  static const _dark = Color(0xFFBDBDBD);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (var y = 0.0; y < size.height; y += _tile) {
+      for (var x = 0.0; x < size.width; x += _tile) {
+        final isEven = ((x / _tile).floor() + (y / _tile).floor()) % 2 == 0;
+        paint.color = isEven ? _light : _dark;
+        canvas.drawRect(Rect.fromLTWH(x, y, _tile, _tile), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

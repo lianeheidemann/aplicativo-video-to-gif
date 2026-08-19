@@ -185,6 +185,7 @@ class _EditorPageState extends State<EditorPage> {
     final optionSections = [
       _durationSection(),
       _aspectSection(),
+      _frameSection(),
       _speedSection(),
       _resolutionSection(),
       _fpsSection(),
@@ -842,6 +843,35 @@ class _EditorPageState extends State<EditorPage> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// Seção de moldura: molduras tipo "celular" desenhadas ao redor do GIF,
+  /// com a área fora do formato arredondado transparente. Cada estilo tem
+  /// cor/espessura fixas; a moldura é redesenhada no tamanho exato de cada
+  /// exportação, então se adapta a qualquer formato escolhido acima sem
+  /// perder nitidez.
+  Widget _frameSection() {
+    final border = _settings.frameBorderPx(_video);
+    final (canvasWidth, canvasHeight) = _settings.canvasDimensions(_video);
+
+    return LabeledSection(
+      icon: Icons.smartphone_rounded,
+      title: 'Moldura',
+      value: _settings.frameStyle.label,
+      hint:
+          'Adiciona uma moldura estilo celular ao redor do GIF, com o fundo '
+          'fora dela transparente.',
+      tip: border == 0
+          ? null
+          : 'Tamanho final com moldura: $canvasWidth×$canvasHeight px.',
+      child: OptionChips<FrameStyle>(
+        options: FrameStyle.values,
+        selected: _settings.frameStyle,
+        labelBuilder: (style) => style.label,
+        onSelected: (style) =>
+            _update(_settings.copyWith(frameStyle: style)),
       ),
     );
   }

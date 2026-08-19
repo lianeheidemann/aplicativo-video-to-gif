@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 import 'video_info.dart';
 
 /// Como o GIF distribui o erro de cor ao reduzir a imagem para 256 cores.
@@ -44,6 +46,104 @@ enum PaletteMode {
 
   final String statsMode;
   final String label;
+}
+
+/// Elemento decorativo desenhado dentro da faixa de borda da moldura,
+/// além do retângulo arredondado básico.
+enum _FrameDecoration { none, notch, pill }
+
+/// Estilo de moldura tipo "celular" desenhada ao redor do GIF, com a área
+/// fora do retângulo arredondado transparente.
+///
+/// A espessura da borda e o raio de canto são definidos como fração do menor
+/// lado da janela de conteúdo (e depois travados numa faixa em pixels), para
+/// que a moldura fique proporcional tanto em GIFs pequenos quanto grandes —
+/// ela é redesenhada do zero em cada exportação, então nunca perde nitidez.
+enum FrameStyle {
+  /// Sem moldura: comportamento atual do app.
+  none('Sem moldura', 0, 0, 0, 0, 0, Color(0x00000000), _FrameDecoration.none),
+
+  /// Borda arredondada uniforme, sem nenhum recorte decorativo.
+  bezelSimple(
+    'Bezel simples',
+    0.07,
+    12,
+    36,
+    0.16,
+    18,
+    Color(0xFF1A1A1A),
+    _FrameDecoration.none,
+  ),
+
+  /// Bezel com um recorte tipo câmera centralizado no topo.
+  notch(
+    'Notch',
+    0.07,
+    12,
+    36,
+    0.16,
+    18,
+    Color(0xFF1A1A1A),
+    _FrameDecoration.notch,
+  ),
+
+  /// Bezel com um indicador tipo "home" centralizado na base.
+  pill(
+    'Pill',
+    0.07,
+    12,
+    36,
+    0.16,
+    18,
+    Color(0xFF1A1A1A),
+    _FrameDecoration.pill,
+  );
+
+  const FrameStyle(
+    this.label,
+    this._borderFraction,
+    this._minBorder,
+    this._maxBorder,
+    this._radiusFraction,
+    this._minRadius,
+    this.color,
+    this._decoration,
+  );
+
+  final String label;
+  final double _borderFraction;
+  final int _minBorder;
+  final int _maxBorder;
+  final double _radiusFraction;
+  final int _minRadius;
+  final Color color;
+  final _FrameDecoration _decoration;
+
+  bool get hasNotch => _decoration == _FrameDecoration.notch;
+  bool get hasPill => _decoration == _FrameDecoration.pill;
+
+  /// Espessura da borda em pixels (pares), proporcional ao menor lado da
+  /// janela de conteúdo [contentWidth]x[contentHeight] e travada numa faixa
+  /// sensata.
+  int borderPx(int contentWidth, int contentHeight) {
+    if (this == FrameStyle.none) return 0;
+    final shortSide = contentWidth < contentHeight
+        ? contentWidth
+        : contentHeight;
+    final raw = (shortSide * _borderFraction).round();
+    final border = raw.clamp(_minBorder, _maxBorder).toInt();
+    return border - (border % 2);
+  }
+
+  /// Raio de canto em pixels, proporcional ao menor lado do canvas total
+  /// (janela de conteúdo + borda dos dois lados) e nunca maior que metade
+  /// dele.
+  double cornerRadius(int canvasWidth, int canvasHeight) {
+    if (this == FrameStyle.none) return 0;
+    final shortSide = canvasWidth < canvasHeight ? canvasWidth : canvasHeight;
+    final raw = shortSide * _radiusFraction;
+    return raw.clamp(_minRadius.toDouble(), shortSide / 2).toDouble();
+  }
 }
 
 /// Recorte em pixels do vídeo já rotacionado (coordenadas de exibição).
@@ -125,6 +225,7 @@ class ConversionSettings {
     this.dither = DitherMode.bayer5,
     this.palette = PaletteMode.global,
     this.loop = true,
+    this.frameStyle = FrameStyle.none,
   });
 
   final double startSeconds;
@@ -137,6 +238,7 @@ class ConversionSettings {
   final DitherMode dither;
   final PaletteMode palette;
   final bool loop;
+  final FrameStyle frameStyle;
 
   /// Presets exibidos no editor redesenhado.
   static const fpsOptions = <int>[5, 8, 10, 12, 15, 20, 24];
@@ -179,6 +281,23 @@ class ConversionSettings {
     return (w < 2 ? 2 : w, h < 2 ? 2 : h);
   }
 
+  /// Espessura (em pixels, igual nos 4 lados) da moldura ao redor da janela
+  /// de conteúdo, ou 0 se [frameStyle] for [FrameStyle.none].
+  int frameBorderPx(VideoInfo video) {
+    final (w, h) = outputDimensions(video);
+    return frameStyle.borderPx(w, h);
+  }
+
+  /// Dimensões finais do GIF já somando a moldura: a janela de conteúdo
+  /// ([outputDimensions]) mais a borda dos dois lados de cada eixo. Sem
+  /// moldura, é igual a [outputDimensions].
+  (int, int) canvasDimensions(VideoInfo video) {
+    final (w, h) = outputDimensions(video);
+    final border = frameBorderPx(video);
+    if (border == 0) return (w, h);
+    return (w + border * 2, h + border * 2);
+  }
+
   /// Quanto a imagem é reduzida em relação ao tamanho de origem (recortado),
   /// usado pelo estimador de tamanho para ponderar o efeito da escala.
   double scaleRatio(VideoInfo video) {
@@ -202,6 +321,7 @@ class ConversionSettings {
     DitherMode? dither,
     PaletteMode? palette,
     bool? loop,
+    FrameStyle? frameStyle,
   }) {
     return ConversionSettings(
       startSeconds: startSeconds ?? this.startSeconds,
@@ -214,6 +334,7 @@ class ConversionSettings {
       dither: dither ?? this.dither,
       palette: palette ?? this.palette,
       loop: loop ?? this.loop,
+      frameStyle: frameStyle ?? this.frameStyle,
     );
   }
 
