@@ -250,8 +250,6 @@ class FfmpegService {
             'crop=$areaWidth:$areaHeight[fitted]',
           );
         case ContentFitMode.expand:
-          // Fundo: cobre a área toda e desfoca; primeiro plano: cabe
-          // inteiro, sem cortar; um sobre o outro, centralizado.
           parts.add('[content]split=2[bg][fg]');
           parts.add(
             '[bg]scale=$areaWidth:$areaHeight:'
@@ -282,10 +280,6 @@ class FfmpegService {
     return parts.join(';');
   }
 
-  /// Resolve "Ajuste automático" para "Preencher" ou "Encaixar": se a
-  /// proporção do conteúdo já está perto da proporção da área (pouco corte
-  /// necessário), preenche sem barras; se está muito diferente, encaixa
-  /// para não cortar demais.
   ContentFitMode _resolveFitMode(
     ContentFitMode mode,
     int contentWidth,
@@ -302,17 +296,11 @@ class FfmpegService {
         : ContentFitMode.fit;
   }
 
-  /// Cor no formato aceito pelos filtros do FFmpeg (`0xRRGGBB`).
   String _ffmpegColor(Color color) {
     final rgb = (color.toARGB32() & 0x00FFFFFF).toRadixString(16);
     return '0x${rgb.padLeft(6, '0')}';
   }
 
-  /// Monta os argumentos do FFmpeg para a passagem 1: gera o arquivo de
-  /// paleta de cores (PNG) a partir do trecho e filtros selecionados. Com
-  /// moldura, [maskPath] (PNG branco/preto do formato arredondado, gerado
-  /// por [rasterizeCornerMask]) recorta os cantos via `alphamerge` antes de
-  /// gerar a paleta — assim a transparência participa da paleta desde já.
   List<String> _paletteGenArgs({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -371,12 +359,6 @@ class FfmpegService {
     ];
   }
 
-  /// Monta os argumentos do FFmpeg para a passagem 2: aplica a paleta
-  /// gerada na passagem 1 ao vídeo e grava o GIF final (ou uma amostra,
-  /// se [frameLimit] for informado). Com moldura, [maskPath] recorta os
-  /// cantos do mesmo jeito que em [_paletteGenArgs], e `alpha_threshold`
-  /// garante que os pixels transparentes da máscara virem o índice
-  /// transparente reservado na paleta.
   List<String> _paletteUseArgs({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -385,8 +367,6 @@ class FfmpegService {
     String? maskPath,
     int? frameLimit,
   }) {
-    // Com paleta por quadro, o paletteuse precisa saber que a tabela de cores
-    // muda ao longo do tempo (new=1).
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
 
     if (settings.frame.style == FrameStyle.none) {
@@ -400,7 +380,6 @@ class FfmpegService {
         '-lavfi',
         '[0:v]$filter[v];[v][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
             ':diff_mode=rectangle$newPalette',
-        // 0 = repetir para sempre; -1 = tocar uma vez só.
         '-loop', settings.loop ? '0' : '-1',
         '-an',
         if (frameLimit != null) ...['-frames:v', '$frameLimit'],
@@ -426,10 +405,6 @@ class FfmpegService {
       video.path,
       '-i',
       palettePath,
-      // `-loop 1` faz a máscara virar um stream infinito. Sem o `-t` aqui,
-      // quando o vídeo (finito) termina, o `alphamerge` repete o último
-      // quadro dele para sempre em vez de encerrar — e como esta passagem
-      // não tem `-frames:v` para limitar a saída, o FFmpeg nunca termina.
       if (maskPath != null) ...[
         '-loop',
         '1',
@@ -452,11 +427,56 @@ class FfmpegService {
     ];
   }
 
-  /// Caminho do PNG de máscara (gerado por [rasterizeCornerMask]) para
-  /// [settings], ou `null` se não há moldura ou "Fundo transparente" está
-  /// desligado. As dimensões não dependem do trecho de tempo, então uma
-  /// única máscara serve tanto a conversão final quanto todas as amostras
-  /// de calibração.
+  /// Para GIF transparente, gera e aplica a paleta dentro do mesmo grafo.
+  /// Isso evita a segunda sessão com vídeo + paleta PNG + máscara, que é a
+  /// etapa que estava falhando no Android ao usar "Fundo transparente".
+  List<String> _transparentGifArgs({
+    required VideoInfo video,
+    required ConversionSettings settings,
+    required String maskPath,
+    required String outputPath,
+    int? frameLimit,
+  }) {
+    final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
+    final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
+
+    return [
+      '-y',
+      '-ss',
+      _seconds(settings.startSeconds),
+      '-t',
+      _seconds(settings.sourceDurationSeconds),
+      '-i',
+      video.path,
+      '-loop',
+      '1',
+      '-framerate',
+      '${settings.fps}',
+      '-i',
+      maskPath,
+      '-lavfi',
+      '$graph;'
+          '[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+          '[1:v]format=gray,fps=${settings.fps},setpts=PTS-STARTPTS[mask_gray];'
+          '[framed_rgba][mask_gray]alphamerge=shortest=1[alpha];'
+          '[alpha]split=2[palette_source][gif_source];'
+          '[palette_source]palettegen=max_colors=${settings.colors}'
+          ':stats_mode=${settings.palette.statsMode}'
+          ':reserve_transparent=1[palette];'
+          '[gif_source][palette]paletteuse=dither=${settings.dither.ffmpegValue}'
+          ':diff_mode=rectangle$newPalette:alpha_threshold=128[out]',
+      '-map',
+      '[out]',
+      '-loop',
+      settings.loop ? '0' : '-1',
+      '-an',
+      if (frameLimit != null) ...['-frames:v', '$frameLimit'],
+      '-f',
+      'gif',
+      outputPath,
+    ];
+  }
+
   Future<String?> _prepareMaskFile({
     required ConversionSettings settings,
     required VideoInfo video,
@@ -486,15 +506,6 @@ class FfmpegService {
 
   String _seconds(double value) => value.toStringAsFixed(3);
 
-  // ------------------------------------------------------------------
-  // Conversão
-  // ------------------------------------------------------------------
-
-  /// Converte o vídeo em GIF usando duas passagens (paleta + aplicação).
-  ///
-  /// Uma passagem só, com a paleta genérica de 216 cores do GIF, produz
-  /// aquele resultado "lavado" com faixas. As duas passagens escolhem as 256
-  /// cores que este vídeo específico usa — é o que dá qualidade de verdade.
   Future<ConversionResult> convert({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -519,32 +530,42 @@ class FfmpegService {
         stamp: '$stamp',
       );
 
-      // A geração da paleta lê o trecho inteiro, então vale cerca de um terço
-      // do tempo total. Repartimos a barra de progresso nessa proporção.
-      await _run(
-        _paletteGenArgs(
-          video: video,
-          settings: settings,
-          palettePath: palettePath,
-          maskPath: maskPath,
-        ),
-        onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
-        step: 'geração da paleta',
-      );
+      if (maskPath != null) {
+        await _run(
+          _transparentGifArgs(
+            video: video,
+            settings: settings,
+            maskPath: maskPath,
+            outputPath: outputPath,
+          ),
+          onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs)),
+          step: 'montagem do GIF transparente',
+        );
+      } else {
+        await _run(
+          _paletteGenArgs(
+            video: video,
+            settings: settings,
+            palettePath: palettePath,
+          ),
+          onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
+          step: 'geração da paleta',
+        );
 
-      if (_cancelled) throw FfmpegException('Conversão cancelada.');
+        if (_cancelled) throw FfmpegException('Conversão cancelada.');
 
-      await _run(
-        _paletteUseArgs(
-          video: video,
-          settings: settings,
-          palettePath: palettePath,
-          outputPath: outputPath,
-          maskPath: maskPath,
-        ),
-        onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
-        step: 'montagem do GIF',
-      );
+        await _run(
+          _paletteUseArgs(
+            video: video,
+            settings: settings,
+            palettePath: palettePath,
+            outputPath: outputPath,
+          ),
+          onTimeMs: (ms) =>
+              onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
+          step: 'montagem do GIF',
+        );
+      }
 
       onProgress?.call(1.0);
 
@@ -569,13 +590,9 @@ class FfmpegService {
     }
   }
 
-  /// Progresso (0–1) dado o tempo já codificado e o tempo total esperado.
   double _ratio(double ms, double totalMs) =>
       totalMs <= 0 ? 0 : (ms / totalMs).clamp(0.0, 1.0).toDouble();
 
-  /// Executa uma sessão do FFmpeg com os [arguments] dados, reportando
-  /// progresso via [onTimeMs] e resolvendo/rejeitando conforme o código de
-  /// retorno da sessão (sucesso, cancelamento ou falha).
   Future<void> _run(
     List<String> arguments, {
     required String step,
@@ -610,7 +627,6 @@ class FfmpegService {
     return completer.future;
   }
 
-  /// Sinaliza cancelamento e interrompe a sessão do FFmpeg em andamento.
   Future<void> cancel() async {
     _cancelled = true;
     final id = _activeSessionId;
@@ -619,24 +635,6 @@ class FfmpegService {
     }
   }
 
-  // ------------------------------------------------------------------
-  // Calibração da estimativa
-  // ------------------------------------------------------------------
-
-  /// Mede o peso real de trechos curtos e devolve o "quanto pesa por pixel"
-  /// deste vídeo.
-  ///
-  /// Codificamos amostras de menos de um segundo em pontos diferentes do
-  /// trecho escolhido, com as MESMAS configurações que o usuário selecionou.
-  /// Como o modelo separa conteúdo (o que medimos) de configuração (o que
-  /// calculamos), o valor obtido continua valendo mesmo depois que o usuário
-  /// mexer nos controles — não é preciso medir de novo a cada ajuste.
-  ///
-  /// De cada amostra saem DUAS medidas: o GIF da janela inteira e o mesmo GIF
-  /// cortado no primeiro quadro. A diferença entre elas é o que os quadros
-  /// seguintes custaram, e é isso que permite ao modelo não diluir o primeiro
-  /// quadro — caro, porque é uma imagem completa — pelo resto da conversão.
-  /// A segunda codificação reaproveita a paleta já gerada, então custa pouco.
   Future<ComplexityProfile> calibrate({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -646,8 +644,6 @@ class FfmpegService {
     final duration = settings.sourceDurationSeconds;
     if (duration <= 0) return ComplexityProfile.fallback;
 
-    // Amostra curta, mas nunca com menos de 5 quadros: com pouquíssimos
-    // quadros o custo fixo do cabeçalho distorce a medição.
     final minWindow = 5 / settings.fps * settings.speed;
     var window = duration / 4;
     if (window < minWindow) window = minWindow;
@@ -664,8 +660,6 @@ class FfmpegService {
     final dir = await getTemporaryDirectory();
     final profiles = <ComplexityProfile>[];
 
-    // As dimensões (e portanto a máscara) não dependem do trecho de tempo,
-    // então uma única máscara serve todas as amostras desta calibração.
     final maskPath = await _prepareMaskFile(
       settings: settings,
       video: video,
@@ -686,36 +680,55 @@ class FfmpegService {
         final firstFramePath = '${dir.path}/amostra_${stamp}_q1.gif';
 
         try {
-          await _run(
-            _paletteGenArgs(
-              video: video,
-              settings: sample,
-              palettePath: palettePath,
-              maskPath: maskPath,
-            ),
-            step: 'medição',
-          );
-          await _run(
-            _paletteUseArgs(
-              video: video,
-              settings: sample,
-              palettePath: palettePath,
-              outputPath: gifPath,
-              maskPath: maskPath,
-            ),
-            step: 'medição',
-          );
-          await _run(
-            _paletteUseArgs(
-              video: video,
-              settings: sample,
-              palettePath: palettePath,
-              outputPath: firstFramePath,
-              maskPath: maskPath,
-              frameLimit: 1,
-            ),
-            step: 'medição',
-          );
+          if (maskPath != null) {
+            await _run(
+              _transparentGifArgs(
+                video: video,
+                settings: sample,
+                maskPath: maskPath,
+                outputPath: gifPath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _transparentGifArgs(
+                video: video,
+                settings: sample,
+                maskPath: maskPath,
+                outputPath: firstFramePath,
+                frameLimit: 1,
+              ),
+              step: 'medição',
+            );
+          } else {
+            await _run(
+              _paletteGenArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _paletteUseArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+                outputPath: gifPath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _paletteUseArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+                outputPath: firstFramePath,
+                frameLimit: 1,
+              ),
+              step: 'medição',
+            );
+          }
 
           final gif = File(gifPath);
           final firstFrame = File(firstFramePath);
@@ -733,8 +746,6 @@ class FfmpegService {
             );
           }
         } on FfmpegException {
-          // Uma amostra que falha (fim do arquivo, quadro corrompido) não
-          // deve derrubar a medição inteira — seguimos com as que deram certo.
         } finally {
           _activeSessionId = null;
           _deleteQuietly(palettePath);
@@ -751,7 +762,6 @@ class FfmpegService {
     return SizeEstimator.combineSamples(profiles);
   }
 
-  /// Espalha as amostras pelo trecho para pegar partes paradas e agitadas.
   List<double> _samplePositions({
     required double start,
     required double duration,
@@ -774,13 +784,6 @@ class FfmpegService {
     }).toList();
   }
 
-  // ------------------------------------------------------------------
-  // Miniatura para a prévia de recorte
-  // ------------------------------------------------------------------
-
-  /// Extrai um único quadro do vídeo no instante [atSeconds] como JPEG,
-  /// usado para gerar a miniatura da tela de recorte. Retorna `null` se a
-  /// extração falhar.
   Future<File?> extractFrame({
     required VideoInfo video,
     required double atSeconds,
@@ -815,13 +818,11 @@ class FfmpegService {
     return file.existsSync() ? file : null;
   }
 
-  /// Apaga um arquivo temporário sem lançar erro se isso falhar.
   void _deleteQuietly(String path) {
     try {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
     } on FileSystemException {
-      // Arquivo temporário: se não deu para apagar agora, o sistema limpa.
     }
   }
 }
