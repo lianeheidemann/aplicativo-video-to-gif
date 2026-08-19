@@ -342,13 +342,28 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   /// Seções mostradas na aba "Frame": estilo/cor/espessura/cantos da
-  /// moldura e, quando o estilo escolhido força uma proporção fixa (não é
-  /// "Sem moldura" nem "Bordas finas"), como o vídeo se encaixa nela.
+  /// moldura, quando o estilo escolhido força uma proporção fixa (não é
+  /// "Sem moldura" nem "Bordas finas") como o vídeo se encaixa nela, e o
+  /// botão de converter — para não obrigar a voltar para "Ajustar" só para
+  /// iniciar a conversão.
   List<Widget> _frameSections() {
     return [
       _frameStyleSection(),
       if (_settings.frame.style.targetAspectRatio != null) _contentFitSection(),
+      const SizedBox(height: 4),
+      _convertButton(),
     ];
+  }
+
+  /// Botão "Converter em GIF", usado tanto ao final da aba "Ajustar"
+  /// (dentro do [SizePanel]) quanto da aba "Frame".
+  Widget _convertButton() {
+    return FilledButton.icon(
+      onPressed: _openingConversion ? null : _convert,
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60)),
+      icon: const Icon(Icons.swap_horiz_rounded),
+      label: const Text('Converter em GIF'),
+    );
   }
 
   /// Substitui as configurações da moldura, mantendo o resto igual.

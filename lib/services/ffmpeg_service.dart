@@ -353,7 +353,15 @@ class FfmpegService {
       _seconds(settings.sourceDurationSeconds),
       '-i',
       video.path,
-      if (maskPath != null) ...['-loop', '1', '-i', maskPath],
+      if (maskPath != null)
+        ...[
+          '-loop',
+          '1',
+          '-t',
+          _seconds(settings.sourceDurationSeconds),
+          '-i',
+          maskPath,
+        ],
       '-lavfi',
       '$graph$maskStage;'
           '[$paletteLabel]palettegen=max_colors=${settings.colors}'
@@ -419,7 +427,19 @@ class FfmpegService {
       video.path,
       '-i',
       palettePath,
-      if (maskPath != null) ...['-loop', '1', '-i', maskPath],
+      // `-loop 1` faz a máscara virar um stream infinito. Sem o `-t` aqui,
+      // quando o vídeo (finito) termina, o `alphamerge` repete o último
+      // quadro dele para sempre em vez de encerrar — e como esta passagem
+      // não tem `-frames:v` para limitar a saída, o FFmpeg nunca termina.
+      if (maskPath != null)
+        ...[
+          '-loop',
+          '1',
+          '-t',
+          _seconds(settings.sourceDurationSeconds),
+          '-i',
+          maskPath,
+        ],
       '-lavfi',
       '$graph$maskStage;'
           '[$useLabel][1:v]paletteuse=dither=${settings.dither.ffmpegValue}'
