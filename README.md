@@ -6,7 +6,7 @@
 
 <img src="assets/badge/beta-version-animated-rounded.svg"/><br>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/aplicativo-video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/aplicativo-video-to-gif/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/lianeheidemann/video-to-gif/ci.yml?branch=main&style=flat-square&label=CI&logo=github&logoColor=white&labelColor=372b4d)](https://github.com/lianeheidemann/video-to-gif/actions/workflows/ci.yml)
 ![Flutter](https://img.shields.io/badge/Flutter-3.44%2B-b79cf2?style=flat-square&logo=flutter&logoColor=white&labelColor=372b4d)
 ![Dart](https://img.shields.io/badge/Dart-3.12%2B-7c53c9?style=flat-square&logo=dart&logoColor=white&labelColor=372b4d)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-d68fe0?style=flat-square&logo=android&logoColor=white&labelColor=372b4d)
@@ -28,7 +28,7 @@ spend time converting it**.
 > All conversion runs on-device with FFmpeg. The app has no internet
 > permission.
 >
-> **[⬇ Download the APK](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases/latest)**
+> **[⬇ Download the APK](https://github.com/lianeheidemann/video-to-gif/releases/latest)**
 > — installs straight onto Android, no store needed.
 
 <br>
@@ -109,8 +109,8 @@ Requires Flutter 3.44+ (Dart 3.12+) and the Android SDK (API 36) with NDK
 installed.
 
 ```bash
-git clone https://github.com/lianeheidemann/aplicativo-video-to-gif.git
-cd aplicativo-video-to-gif
+git clone https://github.com/lianeheidemann/video-to-gif.git
+cd video-to-gif
 ```
 ```
 flutter pub get
@@ -118,6 +118,20 @@ flutter test
 ```
 ```
 flutter run
+```
+
+### Build the release APK
+
+To generate an optimized APK for installation or distribution, run:
+
+```bash
+flutter build apk --release
+```
+
+The generated file will be available at:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
 ```
 
 CI pins the Flutter version to **3.47.0** (`FLUTTER_VERSION` in
@@ -192,7 +206,7 @@ problems with FFmpeg's native libraries.
 ## Download the APK
 
 Every published version becomes a
-[Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases)
+[Release](https://github.com/lianeheidemann/video-to-gif/releases)
 with ready-to-install APKs — start with `arm64-v8a`, which covers
 practically every current Android phone. `universal` is larger, but works
 on any device.
