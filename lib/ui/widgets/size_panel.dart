@@ -56,9 +56,7 @@ class SizePanel extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: color.withValues(alpha: 0.2),
-                        ),
+                        border: Border.all(color: color.withValues(alpha: 0.2)),
                       ),
                       child: Icon(Icons.data_usage_rounded, color: color),
                     ),
