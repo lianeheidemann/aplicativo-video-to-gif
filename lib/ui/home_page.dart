@@ -316,17 +316,16 @@ class _DashedLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(
-      context,
-    ).colorScheme.primary.withValues(alpha: 0.4);
+    final color = Theme.of(context).colorScheme.primary.withValues(alpha: 0.4);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         const dashWidth = 4.0;
         const gap = 4.0;
-        final count = (constraints.maxWidth / (dashWidth + gap))
-            .floor()
-            .clamp(1, 100);
+        final count = (constraints.maxWidth / (dashWidth + gap)).floor().clamp(
+          1,
+          100,
+        );
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(

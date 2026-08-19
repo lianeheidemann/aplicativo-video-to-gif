@@ -158,7 +158,9 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                   const SizedBox(height: 22),
                   _SizeComparison(
-                    original: SizeEstimate.formatBytes(widget.video.fileSizeBytes),
+                    original: SizeEstimate.formatBytes(
+                      widget.video.fileSizeBytes,
+                    ),
                     predicted: widget.estimate.formatted,
                     finalSize: result.formattedSize,
                     difference: '${_predictionDiff()} da previsão',
@@ -194,7 +196,8 @@ class _ResultPageState extends State<ResultPage> {
                   _MetricRow(
                     icon: Icons.aspect_ratio_outlined,
                     label: 'Dimensões',
-                    original: 'de ${widget.video.width} × ${widget.video.height} px',
+                    original:
+                        'de ${widget.video.width} × ${widget.video.height} px',
                     value: '${result.width} × ${result.height} px',
                   ),
                   const SizedBox(height: 22),
@@ -249,9 +252,7 @@ class _ResultPageState extends State<ResultPage> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(60),
                 foregroundColor: scheme.primary,
-                side: BorderSide(
-                  color: scheme.outline.withValues(alpha: 0.85),
-                ),
+                side: BorderSide(color: scheme.outline.withValues(alpha: 0.85)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(28),
                 ),
@@ -401,11 +402,7 @@ class _SizeComparison extends StatelessWidget {
 }
 
 class _SizeCell extends StatelessWidget {
-  const _SizeCell({
-    required this.label,
-    required this.value,
-    this.accent,
-  });
+  const _SizeCell({required this.label, required this.value, this.accent});
 
   final String label;
   final String value;
