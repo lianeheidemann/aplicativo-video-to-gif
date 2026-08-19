@@ -197,22 +197,6 @@ with ready-to-install APKs — start with `arm64-v8a`, which covers
 practically every current Android phone. `universal` is larger, but works
 on any device.
 
-To cut a new version:
-
-```bash
-git tag v1.1.11
-git push origin v1.1.11
-```
-
-The `.github/workflows/release.yml` workflow builds, names and publishes
-the files on its own (it can also be triggered manually from the Actions
-tab).
-
-The tag must match the `version` in `pubspec.yaml` (currently `1.1.11+11`).
-The number after the `+` is Android's `versionCode` and **must increase**
-with every submission to the Play Store — otherwise the upload is
-rejected.
-
 ## Stack
 
 | Layer | Choice | Why |
