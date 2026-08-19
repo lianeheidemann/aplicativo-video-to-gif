@@ -4,8 +4,7 @@ import '../../models/size_estimate.dart';
 import '../../theme.dart';
 
 /// Painel final do editor: compara o peso do vídeo original com a
-/// estimativa do GIF, dá dicas de como reduzi-lo e traz o botão de
-/// converter.
+/// estimativa do GIF e traz as ações de recalcular e converter.
 class SizePanel extends StatelessWidget {
   const SizePanel({
     super.key,
@@ -37,6 +36,13 @@ class SizePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Card(
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -45,11 +51,14 @@ class SizePanel extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Icon(Icons.data_usage_rounded, color: color),
                     ),
@@ -64,31 +73,30 @@ class SizePanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: 22),
+                Text(
+                  'Tamanho estimado',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        SizeEstimate.formatBytes(originalBytes),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                    Text(
+                      SizeEstimate.formatBytes(originalBytes),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        decoration: TextDecoration.lineThrough,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 10,
-                        left: 6,
-                        right: 6,
-                      ),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 17,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 19,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     Text(
                       estimate.formatted,
@@ -97,81 +105,69 @@ class SizePanel extends StatelessWidget {
                         color: color,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.24),
                         ),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _verdictLabel(estimate.verdict),
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      ),
+                      child: Text(
+                        _verdictLabel(estimate.verdict),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
                 Text(
-                  '${calibrated ? 'Estimativa medida' : 'Estimativa'}: ${estimate.formattedRange}',
+                  '${calibrated ? 'Faixa medida' : 'Faixa provável'}: '
+                  '${estimate.formattedRange}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   summary,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 _ImpactBar(verdict: estimate.verdict),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 OutlinedButton.icon(
                   onPressed: measuring ? null : onMeasure,
                   icon: measuring
                       ? const SizedBox(
-                          width: 17,
-                          height: 17,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.refresh_rounded, size: 19),
-                  label: Text(
-                    measuring
-                        ? 'Medindo…'
-                        : calibrated
-                        ? 'Medir novamente'
-                        : 'Medir',
-                  ),
+                      : const Icon(Icons.refresh_rounded, size: 20),
+                  label: Text(measuring ? 'Medindo…' : 'Recalcular'),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 18),
-        FilledButton(
+        FilledButton.icon(
           onPressed: onConvert,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(58)),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.auto_awesome),
-              SizedBox(width: 8),
-              Text('Converter em GIF'),
-              SizedBox(width: 8),
-              Icon(Icons.auto_awesome),
-            ],
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(60),
           ),
+          icon: const Icon(Icons.swap_horiz_rounded),
+          label: const Text('Converter em GIF'),
         ),
       ],
     );
@@ -185,8 +181,8 @@ class SizePanel extends StatelessWidget {
   };
 }
 
-/// Barra "leve → moderado → pesado" com um marcador indicando onde o
-/// veredito atual cai.
+/// Barra contínua "leve → moderado → pesado" com um marcador indicando
+/// onde o veredito atual cai.
 class _ImpactBar extends StatelessWidget {
   const _ImpactBar({required this.verdict});
 
@@ -194,7 +190,7 @@ class _ImpactBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Posição horizontal (0-1) do marcador na barra, por veredito.
+    final theme = Theme.of(context);
     final position = switch (verdict) {
       SizeVerdict.light => 0.16,
       SizeVerdict.good => 0.5,
@@ -206,54 +202,57 @@ class _ImpactBar extends StatelessWidget {
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
+            const markerSize = 18.0;
+
             return SizedBox(
-              height: 18,
+              height: markerSize,
               child: Stack(
                 alignment: Alignment.centerLeft,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF58C78C),
-                            borderRadius: BorderRadius.horizontal(
-                              left: Radius.circular(8),
-                            ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 8,
+                            child: ColoredBox(color: Color(0xFF58C78C)),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Container(height: 8, color: Color(0xFFB8B36A)),
-                      ),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Container(
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE57373),
-                            borderRadius: BorderRadius.horizontal(
-                              right: Radius.circular(8),
-                            ),
+                        Expanded(
+                          child: SizedBox(
+                            height: 8,
+                            child: ColoredBox(color: Color(0xFFB8B36A)),
                           ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: SizedBox(
+                            height: 8,
+                            child: ColoredBox(color: Color(0xFFE57373)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   Positioned(
-                    left: (constraints.maxWidth - 14) * position,
+                    left: (constraints.maxWidth - markerSize) * position,
                     child: Container(
-                      width: 14,
-                      height: 14,
+                      width: markerSize,
+                      height: markerSize,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: theme.colorScheme.onSurface,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.surface,
-                          width: 2,
+                          color: theme.colorScheme.surface,
+                          width: 3,
                         ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x66000000),
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -262,22 +261,39 @@ class _ImpactBar extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         const Row(
           children: [
-            Expanded(child: Text('Leve', style: TextStyle(fontSize: 11))),
+            Expanded(
+              child: Text(
+                'Leve',
+                style: TextStyle(
+                  color: Color(0xFF58C78C),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             Expanded(
               child: Text(
                 'Moderado',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11),
+                style: TextStyle(
+                  color: Color(0xFFB8B36A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             Expanded(
               child: Text(
                 'Pesado',
                 textAlign: TextAlign.end,
-                style: TextStyle(fontSize: 11),
+                style: TextStyle(
+                  color: Color(0xFFE57373),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
