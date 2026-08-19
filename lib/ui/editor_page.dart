@@ -1204,9 +1204,7 @@ class _EditorPageState extends State<EditorPage> {
               ),
               Divider(
                 height: 17,
-                color: theme.colorScheme.outlineVariant.withValues(
-                  alpha: 0.45,
-                ),
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
               ),
               _collapsibleSubsection(
                 label: 'Paleta',
