@@ -1,0 +1,38 @@
+name: Format once
+
+on:
+  push:
+    branches: ['main']
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Formatar arquivos
+        run: dart format lib/ui/home_page.dart lib/ui/result_page.dart
+
+      - name: Commitar formatação
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/ui/home_page.dart lib/ui/result_page.dart
+          if git diff --cached --quiet; then
+            echo "Nada para formatar."
+          else
+            git commit -m "Formata arquivos Dart para CI"
+            git push
+          fi
