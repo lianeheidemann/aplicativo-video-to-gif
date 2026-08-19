@@ -139,6 +139,22 @@ CI pins the Flutter version to **3.47.0** (`FLUTTER_VERSION` in
 your machine, it's almost always a version mismatch — run it on the same
 one.
 
+### Build the APK
+
+To generate a release APK you can install on a device without `flutter run`:
+
+```bash
+flutter build apk --release
+```
+
+The APK is written to `build/app/outputs/flutter-apk/app-release.apk`. To
+build split APKs per ABI instead of a single universal one (smaller
+downloads, closer to what the [Release](https://github.com/lianeheidemann/aplicativo-video-to-gif/releases) page ships), add `--split-per-abi`:
+
+```bash
+flutter build apk --release --split-per-abi
+```
+
 ## Structure
 
 ```
