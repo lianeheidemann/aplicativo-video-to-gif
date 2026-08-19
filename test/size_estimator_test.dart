@@ -337,10 +337,10 @@ void main() {
 
   group('classificação e formatação', () {
     test('separa as faixas de peso', () {
-      expect(SizeVerdict.forBytes(1 * 1024 * 1024), SizeVerdict.light);
-      expect(SizeVerdict.forBytes(4 * 1024 * 1024), SizeVerdict.good);
-      expect(SizeVerdict.forBytes(10 * 1024 * 1024), SizeVerdict.heavy);
-      expect(SizeVerdict.forBytes(30 * 1024 * 1024), SizeVerdict.tooHeavy);
+      expect(SizeVerdict.forBytes(15 * 1024 * 1024), SizeVerdict.light);
+      expect(SizeVerdict.forBytes(20 * 1024 * 1024), SizeVerdict.good);
+      expect(SizeVerdict.forBytes(25 * 1024 * 1024), SizeVerdict.heavy);
+      expect(SizeVerdict.forBytes(50 * 1024 * 1024), SizeVerdict.tooHeavy);
     });
 
     test('a faixa é mais estreita quando houve calibração', () {
