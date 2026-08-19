@@ -140,14 +140,11 @@ class FrameSettings {
 
   bool get hasImageFrame => imageFrame != null;
 
-  /// Se há uma proporção de canvas fixa a respeitar — de um [FrameStyle]
-  /// procedural com [FrameStyle.targetAspectRatio] ou de uma moldura de
-  /// imagem (que sempre tem proporção fixa, a da própria arte).
-  bool get hasFixedAspect =>
-      imageFrame != null || style.targetAspectRatio != null;
+  /// Somente molduras de imagem têm canvas próprio. Molduras procedurais
+  /// respeitam sempre o formato de janela escolhido pelo usuário.
+  bool get hasFixedAspect => imageFrame != null;
 
-  double? get fixedAspectRatio =>
-      imageFrame?.nativeAspectRatio ?? style.targetAspectRatio;
+  double? get fixedAspectRatio => imageFrame?.nativeAspectRatio;
 
   /// Largura de referência (px) usada para normalizar [thicknessAtReference].
   static const referenceWidth = 480.0;

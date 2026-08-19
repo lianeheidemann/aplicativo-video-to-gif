@@ -40,9 +40,9 @@ enum SizeVerdict {
 
   static SizeVerdict forBytes(int bytes) {
     const mb = 1024 * 1024;
-    if (bytes < 2 * mb) return SizeVerdict.light;
-    if (bytes < 6 * mb) return SizeVerdict.good;
-    if (bytes < 15 * mb) return SizeVerdict.heavy;
+    if (bytes <= 15 * mb) return SizeVerdict.light;
+    if (bytes < 25 * mb) return SizeVerdict.good;
+    if (bytes < 50 * mb) return SizeVerdict.heavy;
     return SizeVerdict.tooHeavy;
   }
 }
