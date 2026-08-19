@@ -385,43 +385,74 @@ class _EditorPageState extends State<EditorPage> {
     _update(_settings.copyWith(frame: next));
   }
 
-  /// Envolve [_preview] com a moldura ao vivo (cor, espessura e cantos),
-  /// usando a mesma matemática proporcional de [FrameSettings] usada na
-  /// exportação — por isso a moldura fica nítida em qualquer tamanho de
-  /// tela, sem precisar de nenhum asset de imagem fixo.
+  /// Envolve [_preview] com a moldura selecionada e mantém a linha do tempo
+  /// como a última camada do conjunto. Assim os controles nunca ficam atrás
+  /// de uma moldura de imagem nem são reduzidos para caber na janela dela.
   Widget _framedPreview() {
     final frame = _settings.frame;
-    if (frame.imageFrame != null) return _imageFramedPreview(frame.imageFrame!);
-    if (frame.style == FrameStyle.none) return _preview();
+    final Widget framedVideo;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.hasBoundedWidth
-            ? constraints.maxWidth
-            : MediaQuery.of(context).size.width;
-        final thickness = frame.thicknessFor(width);
-        final outerRadius = frame.cornerRadiusFor(width);
-        final innerRadius = (outerRadius - thickness).clamp(0.0, outerRadius);
+    if (frame.imageFrame != null) {
+      framedVideo = _imageFramedPreview(frame.imageFrame!);
+    } else if (frame.style == FrameStyle.none) {
+      framedVideo = _preview();
+    } else {
+      framedVideo = LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : MediaQuery.of(context).size.width;
+          final thickness = frame.thicknessFor(width);
+          final outerRadius = frame.cornerRadiusFor(width);
+          final innerRadius = (outerRadius - thickness).clamp(0.0, outerRadius);
 
-        final bordered = Container(
-          color: frame.color,
-          padding: EdgeInsets.all(thickness),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(innerRadius),
-            child: _preview(),
-          ),
-        );
+          final bordered = Container(
+            color: frame.color,
+            padding: EdgeInsets.all(thickness),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(innerRadius),
+              child: _preview(),
+            ),
+          );
 
-        // Sem "Fundo transparente", a moldura é um cartão retangular comum
-        // (só a janela do conteúdo é arredondada). Com o toggle ligado, o
-        // próprio contorno externo também fica arredondado, revelando o
-        // fundo por trás nos 4 cantos.
-        if (!frame.transparentBackground) return bordered;
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(outerRadius),
-          child: bordered,
-        );
-      },
+          // Sem "Fundo transparente", a moldura é um cartão retangular comum
+          // (só a janela do conteúdo é arredondada). Com o toggle ligado, o
+          // próprio contorno externo também fica arredondado, revelando o
+          // fundo por trás nos 4 cantos.
+          if (!frame.transparentBackground) return bordered;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(outerRadius),
+            child: bordered,
+          );
+        },
+      );
+    }
+
+    final player = _player;
+    if (player == null || !player.value.isInitialized) return framedVideo;
+
+    return Stack(
+      children: [
+        framedVideo,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _previewTimelineOverlay(player),
+        ),
+      ],
+    );
+  }
+
+  /// Fundo opaco da linha do tempo, exibido por cima do vídeo e de qualquer
+  /// moldura para preservar a leitura e os gestos em todas as opções.
+  Widget _previewTimelineOverlay(VideoPlayerController player) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+      child: ColoredBox(
+        color: const Color(0xF0000000),
+        child: _previewTimeline(player),
+      ),
     );
   }
 
@@ -1179,8 +1210,9 @@ class _EditorPageState extends State<EditorPage> {
     ContentFitMode.expand => Icons.open_in_full_rounded,
   };
 
-  /// Área de prévia: vídeo (ou aviso de codec incompatível), overlay de
-  /// recorte arrastável e linha do tempo com o trecho selecionado.
+  /// Área de prévia: vídeo (ou aviso de codec incompatível) e overlay de
+  /// recorte arrastável. A linha do tempo é adicionada por [_framedPreview]
+  /// depois da moldura, para permanecer sempre visível.
   Widget _preview() {
     final theme = Theme.of(context);
     final player = _player;
@@ -1225,73 +1257,68 @@ class _EditorPageState extends State<EditorPage> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+    return AspectRatio(
+      aspectRatio: player.value.aspectRatio,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
         ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: player.value.aspectRatio,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                VideoPlayer(player),
-                Positioned.fill(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () async {
-                        if (player.value.isPlaying) {
-                          await player.pause();
-                        } else {
-                          final position =
-                              player.value.position.inMilliseconds / 1000;
-                          if (position < _settings.startSeconds ||
-                              position >= _settings.endSeconds) {
-                            await _seekPreview(_settings.startSeconds);
-                          }
-                          await player.play();
-                        }
-                        if (mounted) setState(() {});
-                      },
-                      child: Center(
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: const BoxDecoration(
-                            color: Color(0x99000000),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            player.value.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            VideoPlayer(player),
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    if (player.value.isPlaying) {
+                      await player.pause();
+                    } else {
+                      final position =
+                          player.value.position.inMilliseconds / 1000;
+                      if (position < _settings.startSeconds ||
+                          position >= _settings.endSeconds) {
+                        await _seekPreview(_settings.startSeconds);
+                      }
+                      await player.play();
+                    }
+                    if (mounted) setState(() {});
+                  },
+                  child: Center(
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: const BoxDecoration(
+                        color: Color(0x99000000),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        player.value.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 36,
                       ),
                     ),
                   ),
                 ),
-                _CropOverlay(
-                  video: _video,
-                  crop: _settings.crop,
-                  onResize: _resizeCropFromHandle,
-                  onMove: _moveCropFromHandle,
-                  freeform: _aspect == _customAspectPreset,
-                ),
-              ],
+              ),
             ),
-          ),
-          _previewTimeline(player),
-        ],
+            _CropOverlay(
+              video: _video,
+              crop: _settings.crop,
+              onResize: _resizeCropFromHandle,
+              onMove: _moveCropFromHandle,
+              freeform: _aspect == _customAspectPreset,
+            ),
+          ],
+        ),
       ),
     );
   }
