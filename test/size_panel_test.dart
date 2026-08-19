@@ -78,7 +78,7 @@ void main() {
       expect(find.text('Pesado'), findsWidgets);
     });
 
-    testWidgets('oferece medir enquanto a estimativa é aproximada', (
+    testWidgets('oferece recalcular enquanto a estimativa é aproximada', (
       tester,
     ) async {
       var chamou = false;
@@ -88,15 +88,13 @@ void main() {
         onMeasure: () => chamou = true,
       );
 
-      // Sem calibração o rótulo é só "Estimativa"; medido vira
-      // "Estimativa medida".
-      expect(find.textContaining('Estimativa: '), findsOneWidget);
+      expect(find.textContaining('Faixa provável: '), findsOneWidget);
 
-      await tester.tap(find.text('Medir'));
+      await tester.tap(find.text('Recalcular'));
       expect(chamou, isTrue);
     });
 
-    testWidgets('depois de medir, anuncia a faixa medida e oferece remedir', (
+    testWidgets('depois de medir, anuncia a faixa medida e permite recalcular', (
       tester,
     ) async {
       await _pumpPanel(
@@ -107,9 +105,10 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('Estimativa medida: '), findsOneWidget);
+      expect(find.textContaining('Faixa medida: '), findsOneWidget);
       expect(find.text('Medir'), findsNothing);
-      expect(find.text('Medir novamente'), findsOneWidget);
+      expect(find.text('Medir novamente'), findsNothing);
+      expect(find.text('Recalcular'), findsOneWidget);
     });
 
     testWidgets('a faixa aperta quando a estimativa é medida', (tester) async {
