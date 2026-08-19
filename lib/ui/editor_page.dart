@@ -91,6 +91,7 @@ class _EditorPageState extends State<EditorPage> {
       await controller.initialize();
       await controller.setLooping(true);
       await controller.setVolume(0);
+      await controller.setPlaybackSpeed(_settings.speed);
       if (!mounted) {
         await controller.dispose();
         return;
@@ -1081,7 +1082,10 @@ class _EditorPageState extends State<EditorPage> {
             divisions: ((max - min) / 0.05).round(),
             value: speed,
             label: '${_formatSpeed(speed)}x',
-            onChanged: (value) => _update(_settings.copyWith(speed: value)),
+            onChanged: (value) {
+              _update(_settings.copyWith(speed: value));
+              _player?.setPlaybackSpeed(value);
+            },
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
