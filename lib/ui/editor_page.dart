@@ -1,13 +1,16 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/conversion_settings.dart';
 import '../models/frame_settings.dart';
+import '../models/image_frame.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
 import '../services/ffmpeg_service.dart';
+import '../services/imported_frame_store.dart';
 import '../services/size_estimator.dart';
 import '../theme_controller.dart';
 import 'converting_page.dart';
@@ -54,6 +57,8 @@ class EditorPage extends StatefulWidget {
 
 class _EditorPageState extends State<EditorPage> {
   final _ffmpeg = FfmpegService();
+  final _importedFrameStore = ImportedFrameStore();
+  List<ImageFrameAsset> _importedImageFrames = [];
 
   late ConversionSettings _settings = widget.initialSettings;
   late ComplexityProfile _profile = SizeEstimator.profileFromSource(
@@ -88,6 +93,15 @@ class _EditorPageState extends State<EditorPage> {
   void initState() {
     super.initState();
     _initPlayer();
+    _loadImportedFrames();
+  }
+
+  /// Carrega as molduras de imagem importadas em sessões anteriores, para
+  /// continuarem aparecendo na fileira de miniaturas.
+  Future<void> _loadImportedFrames() async {
+    final frames = await _importedFrameStore.loadAll();
+    if (!mounted) return;
+    setState(() => _importedImageFrames = frames);
   }
 
   /// Inicializa o player de vídeo para a prévia. Se o codec não for
@@ -349,7 +363,7 @@ class _EditorPageState extends State<EditorPage> {
   List<Widget> _frameSections() {
     return [
       _frameStyleSection(),
-      if (_settings.frame.style.targetAspectRatio != null) _contentFitSection(),
+      if (_settings.frame.hasFixedAspect) _contentFitSection(),
       const SizedBox(height: 4),
       _convertButton(),
     ];
@@ -377,6 +391,7 @@ class _EditorPageState extends State<EditorPage> {
   /// tela, sem precisar de nenhum asset de imagem fixo.
   Widget _framedPreview() {
     final frame = _settings.frame;
+    if (frame.imageFrame != null) return _imageFramedPreview(frame.imageFrame!);
     if (frame.style == FrameStyle.none) return _preview();
 
     return LayoutBuilder(
@@ -410,6 +425,63 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Prévia ao vivo de uma moldura de imagem: a arte (SVG das prontas do
+  /// app, ou PNG importado) sempre desenhada na sua proporção nativa (nunca
+  /// distorcida), com o vídeo posicionado e ajustado (conforme
+  /// [ContentFitMode]) exatamente dentro da janela de conteúdo
+  /// ([ImageFrameAsset.contentRect]) por baixo dela.
+  Widget _imageFramedPreview(ImageFrameAsset asset) {
+    return AspectRatio(
+      aspectRatio: asset.nativeAspectRatio,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.biggest;
+          final rect = Rect.fromLTWH(
+            size.width * asset.contentRect.left,
+            size.height * asset.contentRect.top,
+            size.width * asset.contentRect.width,
+            size.height * asset.contentRect.height,
+          );
+          final fit = resolveContentFit(
+            _settings.frame.contentFit,
+            _video.aspectRatio,
+            rect.width / rect.height,
+          );
+
+          return Stack(
+            children: [
+              Positioned.fromRect(
+                rect: rect,
+                child: ClipRect(
+                  child: FittedBox(
+                    fit: fit == ContentFitMode.fill
+                        ? BoxFit.cover
+                        : BoxFit.contain,
+                    child: SizedBox(
+                      width: 1000,
+                      height: 1000 / _video.aspectRatio,
+                      child: _preview(),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: asset.source == ImageFrameSource.bundledSvg
+                      ? SvgPicture.asset(asset.svgAssetPath!, fit: BoxFit.fill)
+                      : Image.file(
+                          File(asset.imageFilePath!),
+                          fit: BoxFit.fill,
+                        ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   /// Seção "Molduras": estilo (miniaturas), e — quando há moldura — cor,
   /// espessura, cantos e o switch de fundo transparente.
   Widget _frameStyleSection() {
@@ -424,7 +496,16 @@ class _EditorPageState extends State<EditorPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _frameStyleThumbnails(),
-          if (frame.style != FrameStyle.none) ...[
+          const SizedBox(height: 18),
+          Text(
+            'Molduras de imagem',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _imageFrameThumbnails(),
+          if (frame.style != FrameStyle.none && frame.imageFrame == null) ...[
             const SizedBox(height: 18),
             _sectionCard(
               children: [
@@ -584,6 +665,8 @@ class _EditorPageState extends State<EditorPage> {
   /// Aplica o estilo de moldura escolhido, adotando os padrões de canto e
   /// espessura sugeridos por ele (o usuário ainda pode ajustar cada um
   /// depois). Cor, ajuste de conteúdo e fundo transparente são mantidos.
+  /// Sempre limpa a moldura de imagem selecionada, já que as duas são
+  /// mutuamente exclusivas.
   void _selectFrameStyle(FrameStyle style) {
     final current = _settings.frame;
     _updateFrame(
@@ -591,8 +674,205 @@ class _EditorPageState extends State<EditorPage> {
         style: style,
         corner: style.defaultCorner,
         thicknessAtReference: style.defaultThickness,
+        clearImageFrame: true,
       ),
     );
+  }
+
+  /// Fileira horizontal com as molduras de imagem prontas do app
+  /// ([ImageFrameLibrary.bundled]), as importadas pelo usuário, e um botão
+  /// "+" para importar mais.
+  Widget _imageFrameThumbnails() {
+    final selected = _settings.frame.imageFrame;
+    final assets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: assets.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (index == assets.length) return _importFrameThumb();
+          final asset = assets[index];
+          return _imageFrameThumb(asset, selected: asset.id == selected?.id);
+        },
+      ),
+    );
+  }
+
+  Widget _imageFrameThumb(ImageFrameAsset asset, {required bool selected}) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      key: ValueKey('imageFrameThumb_${asset.id}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _selectImageFrame(asset),
+      onLongPress: asset.source == ImageFrameSource.importedImage
+          ? () => _confirmRemoveImportedFrame(asset)
+          : null,
+      child: SizedBox(
+        width: 62,
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: asset.source == ImageFrameSource.bundledSvg
+                      ? SvgPicture.asset(
+                          asset.svgAssetPath!,
+                          fit: BoxFit.contain,
+                        )
+                      : Image.file(
+                          File(asset.imageFilePath!),
+                          fit: BoxFit.contain,
+                        ),
+                ),
+                if (selected)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              asset.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _importFrameThumb() {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _importFrameImage,
+      child: SizedBox(
+        width: 62,
+        child: Column(
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
+              ),
+              child: Icon(
+                Icons.add_photo_alternate_outlined,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Importar',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Seleciona uma moldura de imagem, sempre limpando o estilo procedural
+  /// (as duas são mutuamente exclusivas).
+  void _selectImageFrame(ImageFrameAsset asset) {
+    _updateFrame(
+      _settings.frame.copyWith(style: FrameStyle.none, imageFrame: asset),
+    );
+  }
+
+  /// Abre o seletor de arquivos para importar uma imagem de moldura própria
+  /// (PNG com uma janela transparente real), e a seleciona em caso de
+  /// sucesso.
+  Future<void> _importFrameImage() async {
+    try {
+      final asset = await _importedFrameStore.importFrame();
+      if (!mounted) return;
+      setState(() => _importedImageFrames = [..._importedImageFrames, asset]);
+      _selectImageFrame(asset);
+    } on ImportedFrameException catch (e) {
+      _showMessage(e.message);
+    }
+  }
+
+  /// Confirma e remove uma moldura de imagem importada.
+  Future<void> _confirmRemoveImportedFrame(ImageFrameAsset asset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remover moldura?'),
+        content: Text('"${asset.label}" vai ser removida da lista.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await _importedFrameStore.remove(asset.id);
+    if (!mounted) return;
+    setState(() {
+      _importedImageFrames = _importedImageFrames
+          .where((a) => a.id != asset.id)
+          .toList();
+      if (_settings.frame.imageFrame?.id == asset.id) {
+        _updateFrame(_settings.frame.copyWith(clearImageFrame: true));
+      }
+    });
   }
 
   /// Paleta de cores oferecida no seletor de "Cor da moldura".

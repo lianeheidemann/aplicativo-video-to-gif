@@ -1,5 +1,7 @@
 import 'dart:ui' show Color;
 
+import 'image_frame.dart';
+
 /// Estilo de moldura desenhado ao redor do GIF. Cada estilo sugere uma
 /// proporção de tela (ou `null` para manter a proporção do recorte feito em
 /// "Ajustar") e valores padrão de canto/espessura, que o usuário ainda pode
@@ -86,6 +88,23 @@ enum ContentFitMode {
   final String subtitle;
 }
 
+/// Resolve [ContentFitMode.auto] para [ContentFitMode.fill] ou
+/// [ContentFitMode.fit] conforme a proporção do conteúdo estiver perto o
+/// suficiente da proporção da área — compartilhado entre a exportação
+/// (`ffmpeg_service.dart`) e a prévia ao vivo de moldura de imagem
+/// (`editor_page.dart`), para as duas nunca divergirem.
+ContentFitMode resolveContentFit(
+  ContentFitMode mode,
+  double contentAspect,
+  double areaAspect,
+) {
+  if (mode != ContentFitMode.auto) return mode;
+  final ratio = contentAspect / areaAspect;
+  return (ratio >= 0.8 && ratio <= 1.25)
+      ? ContentFitMode.fill
+      : ContentFitMode.fit;
+}
+
 /// Configurações da moldura: estilo, cor, espessura, arredondamento dos
 /// cantos, ajuste do conteúdo e transparência do fundo fora da moldura.
 ///
@@ -101,6 +120,7 @@ class FrameSettings {
     this.corner = CornerStyle.sharp,
     this.contentFit = ContentFitMode.auto,
     this.transparentBackground = false,
+    this.imageFrame,
   });
 
   final FrameStyle style;
@@ -111,6 +131,23 @@ class FrameSettings {
   final CornerStyle corner;
   final ContentFitMode contentFit;
   final bool transparentBackground;
+
+  /// Quando não-nula, substitui totalmente a moldura procedural (style/
+  /// color/thickness/corner/transparentBackground ficam ignorados) por uma
+  /// arte de imagem — a arte já embute cor, espessura, cantos e
+  /// transparência das quinas.
+  final ImageFrameAsset? imageFrame;
+
+  bool get hasImageFrame => imageFrame != null;
+
+  /// Se há uma proporção de canvas fixa a respeitar — de um [FrameStyle]
+  /// procedural com [FrameStyle.targetAspectRatio] ou de uma moldura de
+  /// imagem (que sempre tem proporção fixa, a da própria arte).
+  bool get hasFixedAspect =>
+      imageFrame != null || style.targetAspectRatio != null;
+
+  double? get fixedAspectRatio =>
+      imageFrame?.nativeAspectRatio ?? style.targetAspectRatio;
 
   /// Largura de referência (px) usada para normalizar [thicknessAtReference].
   static const referenceWidth = 480.0;
@@ -133,6 +170,8 @@ class FrameSettings {
   }
 
   /// Cria uma cópia substituindo apenas os campos informados.
+  /// [clearImageFrame] remove a moldura de imagem mesmo que [imageFrame]
+  /// não seja passado.
   FrameSettings copyWith({
     FrameStyle? style,
     Color? color,
@@ -140,6 +179,8 @@ class FrameSettings {
     CornerStyle? corner,
     ContentFitMode? contentFit,
     bool? transparentBackground,
+    ImageFrameAsset? imageFrame,
+    bool clearImageFrame = false,
   }) {
     return FrameSettings(
       style: style ?? this.style,
@@ -149,6 +190,7 @@ class FrameSettings {
       contentFit: contentFit ?? this.contentFit,
       transparentBackground:
           transparentBackground ?? this.transparentBackground,
+      imageFrame: clearImageFrame ? null : (imageFrame ?? this.imageFrame),
     );
   }
 }

@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/conversion_settings.dart';
 import '../models/frame_settings.dart';
+import '../models/image_frame.dart';
 import '../models/size_estimate.dart';
 import '../models/video_info.dart';
 import '../ui/widgets/frame_painter.dart';
@@ -235,12 +236,10 @@ class FfmpegService {
     if (contentWidth == areaWidth && contentHeight == areaHeight) {
       parts.add('[content]copy[fitted]');
     } else {
-      final fit = _resolveFitMode(
+      final fit = resolveContentFit(
         frame.contentFit,
-        contentWidth,
-        contentHeight,
-        areaWidth,
-        areaHeight,
+        contentWidth / contentHeight,
+        areaWidth / areaHeight,
       );
       switch (fit) {
         case ContentFitMode.fill:
@@ -280,20 +279,195 @@ class FfmpegService {
     return parts.join(';');
   }
 
-  ContentFitMode _resolveFitMode(
-    ContentFitMode mode,
-    int contentWidth,
-    int contentHeight,
-    int areaWidth,
-    int areaHeight,
-  ) {
-    if (mode != ContentFitMode.auto) return mode;
-    final contentAspect = contentWidth / contentHeight;
-    final areaAspect = areaWidth / areaHeight;
-    final ratio = contentAspect / areaAspect;
-    return (ratio >= 0.8 && ratio <= 1.25)
-        ? ContentFitMode.fill
-        : ContentFitMode.fit;
+  /// Grafo de filtro completo pronto para `-lavfi` quando a moldura é uma
+  /// arte de imagem ([FrameSettings.imageFrame]) — diferente de
+  /// [_framedGraph] (que desenha a borda com `pad` de cor sólida), aqui o
+  /// conteúdo é ajustado para a área de conteúdo da arte
+  /// ([ConversionSettings.imageFrameContentAreaPx]) e a arte (já
+  /// rasterizada em [artInput], no tamanho exato do canvas) é composta por
+  /// cima via `overlay`, usando o próprio canal alfa da arte — sem precisar
+  /// de [rasterizeCornerMask]/[_prepareMaskFile], que só existem para os
+  /// cantos arredondados da moldura procedural.
+  ///
+  /// A transparência final vem da união (`blend=lighten`, ou seja, máximo
+  /// por pixel) de dois mapas em escala de cinza: o canal alfa da própria
+  /// arte (o corpo do mockup) e um retângulo sólido do tamanho exato da
+  /// área de conteúdo (onde o vídeo sempre aparece opaco, mesmo nas barras
+  /// de "Encaixar", que não têm cor de moldura configurável — por isso
+  /// usam preto). [areaMaskInput] é uma fonte `color` do `lavfi`, gerada
+  /// direto no grafo, sem precisar de um arquivo temporário.
+  String _imageFramedGraph(
+    ConversionSettings settings,
+    VideoInfo video, {
+    required String input,
+    required String artInput,
+    required String areaMaskInput,
+    required String output,
+  }) {
+    final contentFilter = buildVideoFilter(settings, video);
+    final frame = settings.frame;
+
+    final (contentWidth, contentHeight) = settings.contentDimensions(video);
+    final (areaX, areaY, areaWidth, areaHeight) = settings
+        .imageFrameContentAreaPx(video);
+    final (canvasWidth, canvasHeight) = settings.imageFrameCanvasDimensions(
+      video,
+    );
+
+    final parts = <String>['[$input]$contentFilter[content]'];
+
+    if (contentWidth == areaWidth && contentHeight == areaHeight) {
+      parts.add('[content]copy[fitted]');
+    } else {
+      final fit = resolveContentFit(
+        frame.contentFit,
+        contentWidth / contentHeight,
+        areaWidth / areaHeight,
+      );
+      switch (fit) {
+        case ContentFitMode.fill:
+          parts.add(
+            '[content]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=increase:flags=lanczos,'
+            'crop=$areaWidth:$areaHeight[fitted]',
+          );
+        case ContentFitMode.expand:
+          parts.add('[content]split=2[bg][fg]');
+          parts.add(
+            '[bg]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=increase:flags=lanczos,'
+            'crop=$areaWidth:$areaHeight,boxblur=12:3[bg2]',
+          );
+          parts.add(
+            '[fg]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=decrease:flags=lanczos[fg2]',
+          );
+          parts.add('[bg2][fg2]overlay=(W-w)/2:(H-h)/2[fitted]');
+        case ContentFitMode.auto:
+        case ContentFitMode.fit:
+          parts.add(
+            '[content]scale=$areaWidth:$areaHeight:'
+            'force_original_aspect_ratio=decrease:flags=lanczos,'
+            'pad=$areaWidth:$areaHeight:(ow-iw)/2:(oh-ih)/2:'
+            'color=black[fitted]',
+          );
+      }
+    }
+
+    parts.add(
+      '[fitted]pad=$canvasWidth:$canvasHeight:$areaX:$areaY:'
+      'color=black[base]',
+    );
+    parts.add('[$artInput]setpts=PTS-STARTPTS[art]');
+    parts.add('[base][art]overlay=0:0,format=rgba[visual]');
+    parts.add(
+      '[$artInput]alphaextract,format=gray,setpts=PTS-STARTPTS[art_alpha]',
+    );
+    parts.add(
+      '[$areaMaskInput]pad=$canvasWidth:$canvasHeight:$areaX:$areaY:'
+      'color=black,format=gray,setpts=PTS-STARTPTS[area_mask]',
+    );
+    parts.add('[art_alpha][area_mask]blend=all_mode=lighten[final_mask]');
+    parts.add('[visual][final_mask]alphamerge=shortest=1[$output]');
+
+    return parts.join(';');
+  }
+
+  /// Rasteriza a arte da moldura de imagem selecionada
+  /// ([FrameSettings.imageFrame]) num PNG de exatamente o tamanho do canvas
+  /// final ([ConversionSettings.imageFrameCanvasDimensions]) — nunca um
+  /// asset esticado, mesmo princípio de [_prepareMaskFile]. Devolve `null`
+  /// quando não há moldura de imagem selecionada.
+  Future<String?> _prepareImageFrameArt({
+    required ConversionSettings settings,
+    required VideoInfo video,
+    required Directory dir,
+    required String stamp,
+  }) async {
+    final asset = settings.frame.imageFrame;
+    if (asset == null) return null;
+
+    final (canvasWidth, canvasHeight) = settings.imageFrameCanvasDimensions(
+      video,
+    );
+    final bytes = asset.source == ImageFrameSource.bundledSvg
+        ? await rasterizeSvgAsset(
+            asset.svgAssetPath!,
+            canvasWidth,
+            canvasHeight,
+          )
+        : await rasterizeImportedImage(
+            asset.imageFilePath!,
+            canvasWidth,
+            canvasHeight,
+          );
+
+    final path = '${dir.path}/moldura_img_$stamp.png';
+    await File(path).writeAsBytes(bytes);
+    return path;
+  }
+
+  /// Argumentos completos do FFmpeg para uma moldura de imagem — sempre
+  /// segue o caminho "com transparência" (paleta com
+  /// `reserve_transparent=1` + `paletteuse ... alpha_threshold=128`), já
+  /// que toda moldura de imagem tem alfa real (mesmo padrão de
+  /// [_transparentGifArgs], mas a partir de [_imageFramedGraph]).
+  List<String> _imageFramedGifArgs({
+    required VideoInfo video,
+    required ConversionSettings settings,
+    required String artPath,
+    required String outputPath,
+    int? frameLimit,
+  }) {
+    final (_, _, areaWidth, areaHeight) = settings.imageFrameContentAreaPx(
+      video,
+    );
+    final graph = _imageFramedGraph(
+      settings,
+      video,
+      input: '0:v',
+      artInput: '1:v',
+      areaMaskInput: '2:v',
+      output: 'framed',
+    );
+    final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
+
+    return [
+      '-y',
+      '-ss',
+      _seconds(settings.startSeconds),
+      '-t',
+      _seconds(settings.sourceDurationSeconds),
+      '-i',
+      video.path,
+      '-loop',
+      '1',
+      '-framerate',
+      '${settings.fps}',
+      '-i',
+      artPath,
+      '-f',
+      'lavfi',
+      '-i',
+      'color=white:size=${areaWidth}x$areaHeight:rate=${settings.fps}',
+      '-lavfi',
+      '$graph;'
+          '[framed]split=2[palette_source][gif_source];'
+          '[palette_source]palettegen=max_colors=${settings.colors}'
+          ':stats_mode=${settings.palette.statsMode}'
+          ':reserve_transparent=1[palette];'
+          '[gif_source][palette]paletteuse=dither=${settings.dither.ffmpegValue}'
+          ':diff_mode=rectangle$newPalette:alpha_threshold=128[out]',
+      '-map',
+      '[out]',
+      '-loop',
+      settings.loop ? '0' : '-1',
+      '-an',
+      if (frameLimit != null) ...['-frames:v', '$frameLimit'],
+      '-f',
+      'gif',
+      outputPath,
+    ];
   }
 
   String _ffmpegColor(Color color) {
@@ -527,8 +701,46 @@ class FfmpegService {
 
     final totalMs = settings.outputDurationSeconds * 1000;
     String? maskPath;
+    String? frameArtPath;
 
     try {
+      if (settings.frame.imageFrame != null) {
+        frameArtPath = await _prepareImageFrameArt(
+          settings: settings,
+          video: video,
+          dir: dir,
+          stamp: '$stamp',
+        );
+        await _run(
+          _imageFramedGifArgs(
+            video: video,
+            settings: settings,
+            artPath: frameArtPath!,
+            outputPath: outputPath,
+          ),
+          onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs)),
+          step: 'montagem do GIF com moldura de imagem',
+        );
+        onProgress?.call(1.0);
+
+        final output = File(outputPath);
+        if (!output.existsSync() || output.lengthSync() == 0) {
+          throw FfmpegException(
+            'O GIF saiu vazio. Tente outro trecho do vídeo.',
+          );
+        }
+
+        final (width, height) = settings.outputDimensions(video);
+        return ConversionResult(
+          file: output,
+          bytes: output.lengthSync(),
+          width: width,
+          height: height,
+          frames: settings.frameCount,
+          elapsed: stopwatch.elapsed,
+        );
+      }
+
       maskPath = await _prepareMaskFile(
         settings: settings,
         video: video,
@@ -592,6 +804,7 @@ class FfmpegService {
       _activeSessionId = null;
       _deleteQuietly(palettePath);
       if (maskPath != null) _deleteQuietly(maskPath);
+      if (frameArtPath != null) _deleteQuietly(frameArtPath);
     }
   }
 
@@ -671,6 +884,12 @@ class FfmpegService {
       dir: dir,
       stamp: 'calib_${DateTime.now().millisecondsSinceEpoch}',
     );
+    final frameArtPath = await _prepareImageFrameArt(
+      settings: settings,
+      video: video,
+      dir: dir,
+      stamp: 'calib_${DateTime.now().millisecondsSinceEpoch}',
+    );
 
     try {
       for (var i = 0; i < positions.length; i++) {
@@ -685,7 +904,27 @@ class FfmpegService {
         final firstFramePath = '${dir.path}/amostra_${stamp}_q1.gif';
 
         try {
-          if (maskPath != null) {
+          if (frameArtPath != null) {
+            await _run(
+              _imageFramedGifArgs(
+                video: video,
+                settings: sample,
+                artPath: frameArtPath,
+                outputPath: gifPath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _imageFramedGifArgs(
+                video: video,
+                settings: sample,
+                artPath: frameArtPath,
+                outputPath: firstFramePath,
+                frameLimit: 1,
+              ),
+              step: 'medição',
+            );
+          } else if (maskPath != null) {
             await _run(
               _transparentGifArgs(
                 video: video,
@@ -761,6 +1000,7 @@ class FfmpegService {
       }
     } finally {
       if (maskPath != null) _deleteQuietly(maskPath);
+      if (frameArtPath != null) _deleteQuietly(frameArtPath);
     }
 
     if (profiles.isEmpty) return SizeEstimator.profileFromSource(video);

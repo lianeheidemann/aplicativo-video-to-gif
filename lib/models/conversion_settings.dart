@@ -212,12 +212,15 @@ class ConversionSettings {
   }
 
   /// Largura/altura finais do GIF. Sem moldura, é exatamente a área de
-  /// conteúdo ([contentDimensions]). Com moldura, soma o espaço da borda
-  /// (e, quando o estilo força uma proporção fixa — celular, story —, a
-  /// área de conteúdo é recalculada nessa proporção antes de somar a
+  /// conteúdo ([contentDimensions]). Com moldura de imagem, é
+  /// [imageFrameCanvasDimensions]. Com moldura procedural, soma o espaço da
+  /// borda (e, quando o estilo força uma proporção fixa — celular, story —,
+  /// a área de conteúdo é recalculada nessa proporção antes de somar a
   /// borda), sempre proporcional ao tamanho de saída para não perder
   /// nitidez em nenhuma resolução.
   (int, int) outputDimensions(VideoInfo video) {
+    if (frame.imageFrame != null) return imageFrameCanvasDimensions(video);
+
     final (contentWidth, contentHeight) = contentDimensions(video);
     if (frame.style == FrameStyle.none) return (contentWidth, contentHeight);
 
@@ -225,6 +228,39 @@ class ConversionSettings {
     final w = _evenFromDouble(areaWidth + thickness * 2);
     final h = _evenFromDouble(areaHeight + thickness * 2);
     return (w < 2 ? 2 : w, h < 2 ? 2 : h);
+  }
+
+  /// Canvas final quando a moldura é uma arte de imagem ([FrameSettings.imageFrame]):
+  /// a largura do conteúdo (vídeo, já escolhida em "Resolução") deve ocupar
+  /// exatamente a fração [ImageFrameAsset.contentRect]'s largura do canvas,
+  /// e a altura do canvas segue a proporção nativa da arte — nunca a
+  /// proporção do conteúdo isolado, para a arte nunca ser distorcida.
+  (int, int) imageFrameCanvasDimensions(VideoInfo video) {
+    final art = frame.imageFrame!;
+    final (contentWidth, _) = contentDimensions(video);
+    final canvasWidth = contentWidth / art.contentRect.width;
+    final canvasHeight = canvasWidth / art.nativeAspectRatio;
+    final w = _evenFromDouble(canvasWidth);
+    final h = _evenFromDouble(canvasHeight);
+    return (w < 2 ? 2 : w, h < 2 ? 2 : h);
+  }
+
+  /// Retângulo em pixels, dentro do canvas de [imageFrameCanvasDimensions],
+  /// onde o vídeo deve aparecer — única fonte de verdade compartilhada
+  /// entre [ffmpeg_service.dart] (que usa os mesmos números para montar o
+  /// grafo de composição) e a prévia ao vivo, para as duas contas nunca
+  /// ficarem fora de sincronia (mesmo princípio de [frameAreaDimensions]).
+  (int x, int y, int width, int height) imageFrameContentAreaPx(
+    VideoInfo video,
+  ) {
+    final (canvasWidth, canvasHeight) = imageFrameCanvasDimensions(video);
+    final r = frame.imageFrame!.contentRect;
+    return (
+      (canvasWidth * r.left).round(),
+      (canvasHeight * r.top).round(),
+      _evenFromDouble(canvasWidth * r.width),
+      _evenFromDouble(canvasHeight * r.height),
+    );
   }
 
   /// Arredonda para o inteiro par mais próximo, exigido pelos filtros de

@@ -71,5 +71,7 @@ Flutter já gera em *Ver licenças*:
 | `flutter` e pacotes oficiais (`video_player`, `path_provider`, `share_plus`) | BSD-3-Clause |
 | `file_picker` | MIT |
 | `gal` | MIT |
+| `shared_preferences` | BSD-3-Clause |
+| `flutter_svg` | MIT |
 | `ffmpeg_kit_flutter_new_min` | LGPL-3.0 |
 | FFmpeg (binário) | LGPL-2.1-or-later |

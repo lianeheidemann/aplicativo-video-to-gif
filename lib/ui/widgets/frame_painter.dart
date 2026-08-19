@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+// Reexporta `vg` (a constante top-level VectorGraphicsUtilities) e
+// PictureInfo do pacote vector_graphics, usados em [rasterizeSvgAsset].
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../models/frame_settings.dart';
 
@@ -135,6 +139,60 @@ Future<Uint8List> rasterizeCornerMask(
     Paint()..color = Colors.white,
   );
 });
+
+/// Rasteriza o SVG do asset [assetPath] para um PNG de exatamente
+/// [width]x[height] pixels — a arte é vetorial, então isso nunca perde
+/// nitidez em nenhuma resolução de saída, ao contrário de esticar um asset
+/// bitmap de tamanho fixo. Usa [rasterizeCanvas] (mesma base do resto deste
+/// arquivo) para nunca haver dois caminhos de rasterização divergentes.
+Future<Uint8List> rasterizeSvgAsset(
+  String assetPath,
+  int width,
+  int height,
+) async {
+  final loader = SvgAssetLoader(assetPath);
+  final pictureInfo = await vg.loadPicture(loader, null);
+  try {
+    return await rasterizeCanvas(width, height, (canvas, size) {
+      canvas.scale(
+        size.width / pictureInfo.size.width,
+        size.height / pictureInfo.size.height,
+      );
+      canvas.drawPicture(pictureInfo.picture);
+    });
+  } finally {
+    pictureInfo.picture.dispose();
+  }
+}
+
+/// Rasteriza a imagem importada em [filePath] para um PNG de exatamente
+/// [width]x[height] pixels, com reamostragem de alta qualidade — mesma
+/// necessidade de nitidez em qualquer resolução de saída que
+/// [rasterizeSvgAsset], mas a partir de um arquivo bitmap já existente em
+/// vez de um desenho vetorial.
+Future<Uint8List> rasterizeImportedImage(
+  String filePath,
+  int width,
+  int height,
+) async {
+  final bytes = await File(filePath).readAsBytes();
+  final codec = await ui.instantiateImageCodec(bytes);
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  try {
+    return await rasterizeCanvas(width, height, (canvas, size) {
+      final paint = Paint()..filterQuality = FilterQuality.high;
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        Offset.zero & size,
+        paint,
+      );
+    });
+  } finally {
+    image.dispose();
+  }
+}
 
 /// Grava um desenho de [width]x[height] pixels (feito por [paint]) como PNG
 /// — a base compartilhada por [FramePainter.rasterize] e

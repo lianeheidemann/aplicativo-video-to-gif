@@ -30,6 +30,13 @@ dependencies:
   gal: ^2.3.3
   shared_preferences: ^2.5.5
 
+  # Renderização vetorial das molduras de imagem prontas (assets/frame) —
+  # sob demanda, no tamanho exato de cada exportação, para nunca perder
+  # nitidez em nenhuma resolução de saída (flutter_svg reexporta `vg`
+  # (VectorGraphicsUtilities) e PictureInfo, usados para rasterizar sem
+  # precisar de BuildContext).
+  flutter_svg: ^2.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -39,3 +46,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/icon-v4.png
+    - assets/frame/
