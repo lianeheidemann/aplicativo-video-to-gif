@@ -1168,7 +1168,7 @@ class _EditorPageState extends State<EditorPage> {
       icon: Icons.palette_outlined,
       title: 'Qualidade das cores',
       value: '${_settings.colors} cores',
-      originalValue: '16.7 milhões de cores',
+      originalValue: 'Cores ilimitadas',
       tip:
           '128 cores costuma equilibrar bem qualidade e tamanho; 256 preserva mais detalhes.',
       child: Column(
