@@ -166,19 +166,182 @@ class _HomePageState extends State<HomePage> {
                       : const Icon(Icons.video_library_outlined),
                   label: Text(_loading ? 'Abrindo…' : 'Escolher vídeo'),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Funciona com MP4, MOV, AVI, MKV, WEBM e 3GP.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                const SizedBox(height: 28),
+                const _SupportedFormatsCard(),
+                const SizedBox(height: 16),
+                const _StepsCard(),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Lista os formatos de vídeo aceitos pelo seletor de arquivos.
+class _SupportedFormatsCard extends StatelessWidget {
+  const _SupportedFormatsCard();
+
+  static const _formats = ['MP4', 'MOV', 'AVI', 'MKV', 'WEBM', '3GP'];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Column(
+          children: [
+            Text(
+              'Formatos suportados',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _formats.join('  ·  '),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+const _kStepCircleSize = 56.0;
+
+/// Etapas do fluxo de conversão, exibidas como um pequeno guia visual.
+class _StepsCard extends StatelessWidget {
+  const _StepsCard();
+
+  static const _steps = [
+    (icon: Icons.folder_open_outlined, label: 'Selecionar vídeo'),
+    (icon: Icons.tune_rounded, label: 'Ajustar'),
+    (icon: Icons.auto_fix_high_rounded, label: 'Converter'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < _steps.length; i++) ...[
+              if (i > 0) const Expanded(child: _StepConnector()),
+              _StepIcon(icon: _steps[i].icon, label: _steps[i].label),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StepIcon extends StatelessWidget {
+  const _StepIcon({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: _kStepCircleSize,
+          height: _kStepCircleSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+          ),
+          child: Icon(icon, color: theme.colorScheme.primary, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _StepConnector extends StatelessWidget {
+  const _StepConnector();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: _kStepCircleSize,
+      child: Row(
+        children: [
+          const Expanded(child: _DashedLine()),
+          Container(
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.primary,
+            ),
+            child: Icon(
+              Icons.arrow_forward_rounded,
+              size: 15,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const Expanded(child: _DashedLine()),
+        ],
+      ),
+    );
+  }
+}
+
+/// Linha tracejada usada para ligar os ícones de etapa em [_StepsCard].
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(
+      context,
+    ).colorScheme.primary.withValues(alpha: 0.4);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dashWidth = 4.0;
+        const gap = 4.0;
+        final count = (constraints.maxWidth / (dashWidth + gap))
+            .floor()
+            .clamp(1, 100);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(
+            count,
+            (_) => Container(
+              width: dashWidth,
+              height: 2,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
