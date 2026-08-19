@@ -184,7 +184,7 @@ class ConversionSettings {
   }
 
   /// Largura/altura/espessura (em pixels) da área onde o vídeo aparece
-  /// dentro da moldura, antes de somar a borda — compartilhado entre
+  /// dentro da moldura — compartilhado entre
   /// [outputDimensions] e o serviço de FFmpeg (que usa os mesmos números
   /// para montar os filtros de composição), para as duas contas nunca
   /// ficarem fora de sincronia.
@@ -193,41 +193,45 @@ class ConversionSettings {
   /// valor que [ffmpeg_service.dart] usa no deslocamento do `pad` do
   /// FFmpeg, então [outputDimensions] soma exatamente esse inteiro (nunca a
   /// espessura "crua"). Arredondar em dois lugares diferentes (aqui um
-  /// valor, lá outro) podia deixar a borda com espessuras desiguais nos
-  /// dois lados e, no limite, o `pad` menor que a área de conteúdo mais o
-  /// deslocamento — o que faz o FFmpeg abortar a montagem do GIF.
+  /// valor, lá outro) podia deixar a borda com espessuras desiguais.
+  ///
+  /// A moldura é desenhada para dentro do canvas definido por "Formato da
+  /// janela" e "Resolução". Portanto a área útil perde a espessura da borda
+  /// nos quatro lados, sem alterar as dimensões finais escolhidas.
   (int width, int height, double thickness) frameAreaDimensions(
     VideoInfo video,
   ) {
     final (contentWidth, contentHeight) = contentDimensions(video);
-    final aspect =
-        frame.style.targetAspectRatio ?? (contentWidth / contentHeight);
-    final areaWidth = contentWidth.toDouble();
-    final areaHeight = areaWidth / aspect;
+    final requestedThickness = frame
+        .thicknessFor(contentWidth.toDouble())
+        .round();
+    final maxHorizontalThickness = (contentWidth - 2) ~/ 2;
+    final maxVerticalThickness = (contentHeight - 2) ~/ 2;
+    final maxThickness = maxHorizontalThickness < maxVerticalThickness
+        ? maxHorizontalThickness
+        : maxVerticalThickness;
+    final thickness = requestedThickness.clamp(0, maxThickness).toInt();
+    final areaWidth = contentWidth - thickness * 2;
+    final areaHeight = contentHeight - thickness * 2;
     return (
-      areaWidth.round(),
-      _evenFromDouble(areaHeight),
-      frame.thicknessFor(areaWidth).roundToDouble(),
+      areaWidth - (areaWidth % 2),
+      areaHeight - (areaHeight % 2),
+      thickness.toDouble(),
     );
   }
 
   /// Largura/altura finais do GIF. Sem moldura, é exatamente a área de
   /// conteúdo ([contentDimensions]). Com moldura de imagem, é
-  /// [imageFrameCanvasDimensions]. Com moldura procedural, soma o espaço da
-  /// borda (e, quando o estilo força uma proporção fixa — celular, story —,
-  /// a área de conteúdo é recalculada nessa proporção antes de somar a
-  /// borda), sempre proporcional ao tamanho de saída para não perder
-  /// nitidez em nenhuma resolução.
+  /// [imageFrameCanvasDimensions]. Molduras procedurais são desenhadas para
+  /// dentro desse mesmo canvas, sem substituir a proporção definida em
+  /// "Formato da janela" nem aumentar as dimensões finais.
   (int, int) outputDimensions(VideoInfo video) {
     if (frame.imageFrame != null) return imageFrameCanvasDimensions(video);
 
     final (contentWidth, contentHeight) = contentDimensions(video);
     if (frame.style == FrameStyle.none) return (contentWidth, contentHeight);
 
-    final (areaWidth, areaHeight, thickness) = frameAreaDimensions(video);
-    final w = _evenFromDouble(areaWidth + thickness * 2);
-    final h = _evenFromDouble(areaHeight + thickness * 2);
-    return (w < 2 ? 2 : w, h < 2 ? 2 : h);
+    return (contentWidth, contentHeight);
   }
 
   /// Canvas final quando a moldura é uma arte de imagem ([FrameSettings.imageFrame]):

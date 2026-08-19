@@ -82,5 +82,37 @@ void main() {
         }
       },
     );
+
+    test('moldura procedural preserva o formato e o tamanho escolhidos', () {
+      final formats = <CropRect?>[
+        null,
+        CropRect.centered(_video, 1),
+        CropRect.centered(_video, 4 / 5),
+        CropRect.centered(_video, 16 / 9),
+      ];
+
+      for (final crop in formats) {
+        for (final style in FrameStyle.values.where(
+          (style) => style != FrameStyle.none,
+        )) {
+          final settings = ConversionSettings(
+            startSeconds: 0,
+            endSeconds: 5,
+            targetWidth: 480,
+            crop: crop,
+            frame: FrameSettings(
+              style: style,
+              thicknessAtReference: style.defaultThickness,
+            ),
+          );
+
+          expect(
+            settings.outputDimensions(_video),
+            settings.contentDimensions(_video),
+            reason: 'style=$style crop=$crop',
+          );
+        }
+      }
+    });
   });
 }

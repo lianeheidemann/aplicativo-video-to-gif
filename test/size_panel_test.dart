@@ -59,6 +59,23 @@ Future<void> _pumpPanel(
 }
 
 void main() {
+  group('classificação de tamanho', () {
+    const mb = 1024 * 1024;
+
+    test('considera leve até 15 MB', () {
+      expect(SizeVerdict.forBytes(15 * mb), SizeVerdict.light);
+    });
+
+    test('considera moderado acima de 15 MB e abaixo de 25 MB', () {
+      expect(SizeVerdict.forBytes(15 * mb + 1), SizeVerdict.good);
+      expect(SizeVerdict.forBytes(25 * mb - 1), SizeVerdict.good);
+    });
+
+    test('considera pesado a partir de 25 MB', () {
+      expect(SizeVerdict.forBytes(25 * mb), SizeVerdict.heavy);
+    });
+  });
+
   group('SizePanel', () {
     testWidgets('mostra peso, classificação e resumo das configurações', (
       tester,
@@ -66,7 +83,7 @@ void main() {
       await _pumpPanel(tester, estimate: _estimate(bytes: 3 * 1024 * 1024));
 
       expect(find.text('3.0 MB'), findsOneWidget);
-      expect(find.text('Moderado'), findsWidgets);
+      expect(find.text('Leve'), findsWidgets);
       expect(find.text(_summary), findsOneWidget);
     });
 
@@ -74,7 +91,7 @@ void main() {
       await _pumpPanel(tester, estimate: _estimate(bytes: 30 * 1024 * 1024));
 
       expect(find.text('30 MB'), findsOneWidget);
-      expect(_estimate(bytes: 30 * 1024 * 1024).verdict, SizeVerdict.tooHeavy);
+      expect(_estimate(bytes: 30 * 1024 * 1024).verdict, SizeVerdict.heavy);
       expect(find.text('Pesado'), findsWidgets);
     });
 
