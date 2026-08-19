@@ -1159,6 +1159,7 @@ class _EditorPageState extends State<EditorPage> {
   /// Seção de qualidade de cor: quantidade de cores, modo de dither, modo
   /// de paleta e se o GIF deve repetir em loop.
   Widget _colorSection() {
+    final theme = Theme.of(context);
     final colors = <int>{
       ...ConversionSettings.primaryColorOptions,
       _settings.colors,
@@ -1186,41 +1187,72 @@ class _EditorPageState extends State<EditorPage> {
             onSelected: (value) => _update(_settings.copyWith(colors: value)),
           ),
           const SizedBox(height: 12),
-          _collapsibleSubsection(
-            label: 'Suavização de cor',
-            subtitle: _settings.dither.label,
-            expanded: _ditherExpanded,
-            onToggle: () => setState(() => _ditherExpanded = !_ditherExpanded),
-            child: OptionChips<DitherMode>(
-              options: DitherMode.values,
-              selected: _settings.dither,
-              labelBuilder: (d) => d.label,
-              onSelected: (d) => _update(_settings.copyWith(dither: d)),
-            ),
+          _sectionCard(
+            children: [
+              _collapsibleSubsection(
+                label: 'Suavização de cor',
+                subtitle: _settings.dither.label,
+                expanded: _ditherExpanded,
+                onToggle: () =>
+                    setState(() => _ditherExpanded = !_ditherExpanded),
+                child: OptionChips<DitherMode>(
+                  options: DitherMode.values,
+                  selected: _settings.dither,
+                  labelBuilder: (d) => d.label,
+                  onSelected: (d) => _update(_settings.copyWith(dither: d)),
+                ),
+              ),
+              Divider(
+                height: 17,
+                color: theme.colorScheme.outlineVariant.withValues(
+                  alpha: 0.45,
+                ),
+              ),
+              _collapsibleSubsection(
+                label: 'Paleta',
+                subtitle: _settings.palette.label,
+                expanded: _paletteExpanded,
+                onToggle: () =>
+                    setState(() => _paletteExpanded = !_paletteExpanded),
+                child: OptionChips<PaletteMode>(
+                  options: PaletteMode.values,
+                  selected: _settings.palette,
+                  labelBuilder: (p) => p.label,
+                  onSelected: (p) => _update(_settings.copyWith(palette: p)),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          _collapsibleSubsection(
-            label: 'Paleta',
-            subtitle: _settings.palette.label,
-            expanded: _paletteExpanded,
-            onToggle: () =>
-                setState(() => _paletteExpanded = !_paletteExpanded),
-            child: OptionChips<PaletteMode>(
-              options: PaletteMode.values,
-              selected: _settings.palette,
-              labelBuilder: (p) => p.label,
-              onSelected: (p) => _update(_settings.copyWith(palette: p)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Repetir para sempre'),
-            subtitle: const Text('Desligue para o GIF tocar uma vez só'),
-            value: _settings.loop,
-            onChanged: (v) => _update(_settings.copyWith(loop: v)),
+          const SizedBox(height: 12),
+          _sectionCard(
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Repetir para sempre'),
+                subtitle: const Text('Desligue para o GIF tocar uma vez só'),
+                value: _settings.loop,
+                onChanged: (v) => _update(_settings.copyWith(loop: v)),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Agrupa subseções relacionadas em um card levemente destacado do fundo,
+  /// como em "Suavização de cor" + "Paleta" e em "Repetir para sempre".
+  Widget _sectionCard({required List<Widget> children}) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }
