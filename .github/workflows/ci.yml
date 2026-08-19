@@ -39,7 +39,9 @@ jobs:
 
       - name: Mostrar diff de formatação
         if: ${{ always() }}
-        run: git diff -- lib/ui/widgets/size_panel.dart test/size_panel_test.dart
+        run: |
+          dart format lib/ui/widgets/size_panel.dart test/size_panel_test.dart
+          git diff -- lib/ui/widgets/size_panel.dart test/size_panel_test.dart
 
       - name: Análise estática
         if: ${{ !cancelled() }}
