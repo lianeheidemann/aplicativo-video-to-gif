@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1520" viewBox="0 0 760 1520" fill="none">
+  <title>Moldura de celular com tela transparente</title>
+  <desc>Moldura vetorial escura de smartphone Android, com câmera frontal e botões laterais. O centro da tela é totalmente transparente.</desc>
+
+  <defs>
+    <linearGradient id="body" x1="78" y1="55" x2="697" y2="1472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4A4B4F"/>
+      <stop offset="0.13" stop-color="#151619"/>
+      <stop offset="0.48" stop-color="#050607"/>
+      <stop offset="0.84" stop-color="#17181B"/>
+      <stop offset="1" stop-color="#3A3B3E"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="91" y1="45" x2="671" y2="1491" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9A9A96"/>
+      <stop offset="0.08" stop-color="#242527"/>
+      <stop offset="0.5" stop-color="#08090A"/>
+      <stop offset="0.9" stop-color="#565754"/>
+      <stop offset="1" stop-color="#111214"/>
+    </linearGradient>
+    <linearGradient id="edgeHighlight" x1="101" y1="53" x2="651" y2="1468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D0D0CA" stop-opacity="0.7"/>
+      <stop offset="0.15" stop-color="#6D6E6B" stop-opacity="0.2"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.04"/>
+      <stop offset="0.9" stop-color="#B6B7B1" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#424340" stop-opacity="0.1"/>
+    </linearGradient>
+    <radialGradient id="camera" cx="0" cy="0" r="1" gradientTransform="translate(380 86) rotate(90) scale(16)">
+      <stop offset="0" stop-color="#273244"/>
+      <stop offset="0.34" stop-color="#0D1420"/>
+      <stop offset="0.68" stop-color="#020304"/>
+      <stop offset="1" stop-color="#000000"/>
+    </radialGradient>
+    <filter id="shadow" x="34" y="22" width="692" height="1486" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+    <filter id="buttonShadow" x="-40%" y="-20%" width="180%" height="140%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <!-- Corpo com abertura real: a tela interna não recebe preenchimento. -->
+  <path
+    d="M181 32H579C671 32 714 82 714 174V1346C714 1438 671 1488 579 1488H181C89 1488 46 1438 46 1346V174C46 82 89 32 181 32Z
+       M181 67C119 67 81 99 81 174V1346C81 1421 119 1453 181 1453H579C641 1453 679 1421 679 1346V174C679 99 641 67 579 67H181Z"
+    fill="url(#body)" fill-rule="evenodd" filter="url(#shadow)"/>
+
+  <!-- Aro metálico externo e aro fino junto à tela. -->
+  <path d="M181 31.5H579C671.5 31.5 714.5 81.7 714.5 174V1346C714.5 1438.3 671.5 1488.5 579 1488.5H181C88.5 1488.5 45.5 1438.3 45.5 1346V174C45.5 81.7 88.5 31.5 181 31.5Z" stroke="url(#rim)" stroke-width="5"/>
+  <path d="M181 67.5H579C640.8 67.5 678.5 99.2 678.5 174V1346C678.5 1420.8 640.8 1452.5 579 1452.5H181C119.2 1452.5 81.5 1420.8 81.5 1346V174C81.5 99.2 119.2 67.5 181 67.5Z" stroke="#55565A" stroke-opacity="0.75" stroke-width="3"/>
+  <path d="M179 40H581C662 40 704 83 704 171" stroke="url(#edgeHighlight)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M56 1347V173C56 91 92 47 177 43" stroke="#D8D8D2" stroke-opacity="0.2" stroke-width="3" stroke-linecap="round"/>
+  <path d="M704 1347C704 1430 662 1477 580 1477H180" stroke="#C9CAC5" stroke-opacity="0.26" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Câmera frontal no estilo punch-hole. -->
+  <circle cx="380" cy="86" r="18" fill="#000000"/>
+  <circle cx="380" cy="86" r="13" fill="url(#camera)"/>
+  <circle cx="376" cy="82" r="3.2" fill="#53647E" fill-opacity="0.38"/>
+
+  <!-- Botões laterais. -->
+  <g filter="url(#buttonShadow)">
+    <path d="M716 411C722 411 725 415 725 422V526C725 533 722 537 716 537V411Z" fill="#242528"/>
+    <path d="M716 568C723 568 726 572 726 579V710C726 717 723 721 716 721V568Z" fill="#242528"/>
+    <path d="M44 296C38 296 35 300 35 307V389C35 396 38 400 44 400V296Z" fill="#202124"/>
+  </g>
+  <path d="M718 421V526" stroke="#777873" stroke-opacity="0.42" stroke-width="2"/>
+  <path d="M718 579V709" stroke="#777873" stroke-opacity="0.42" stroke-width="2"/>
+
+  <!-- Detalhes discretos na base do aparelho. -->
+  <rect x="316" y="1485" width="128" height="4" rx="2" fill="#0B0C0D"/>
+  <rect x="354" y="1484" width="52" height="5" rx="2.5" fill="#50514F" fill-opacity="0.75"/>
+</svg>

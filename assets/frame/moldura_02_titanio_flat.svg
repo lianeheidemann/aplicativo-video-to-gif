@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="titanium" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d5d0c7"/><stop offset=".22" stop-color="#78746d"/><stop offset=".5" stop-color="#b6b0a5"/><stop offset=".78" stop-color="#5e5b56"/><stop offset="1" stop-color="#c7c0b5"/></linearGradient>
+    <linearGradient id="button" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#4e4b46"/><stop offset=".5" stop-color="#aaa49a"/><stop offset="1" stop-color="#57534e"/></linearGradient>
+    <filter id="shadow" x="-18%" y="-12%" width="136%" height="130%"><feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#171512" flood-opacity=".28"/></filter>
+  </defs>
+  <path d="M176 30H904A105 105 0 0 1 1009 135V1785A105 105 0 0 1 904 1890H176A105 105 0 0 1 71 1785V135A105 105 0 0 1 176 30ZM187 62A83 83 0 0 0 104 145V1775A83 83 0 0 0 187 1858H893A83 83 0 0 0 976 1775V145A83 83 0 0 0 893 62Z" fill="url(#titanium)" fill-rule="evenodd" filter="url(#shadow)"/>
+  <rect x="96" y="54" width="888" height="1812" rx="94" fill="none" stroke="#eee9df" stroke-opacity=".62" stroke-width="3"/>
+  <rect x="103" y="61" width="874" height="1798" rx="85" fill="none" stroke="#292724" stroke-width="6"/>
+  <circle cx="540" cy="96" r="18" fill="#070707"/><circle cx="540" cy="96" r="8" fill="#182536"/><circle cx="536" cy="92" r="3" fill="#6f91b9" opacity=".7"/>
+  <rect x="55" y="350" width="16" height="94" rx="5" fill="url(#button)"/><rect x="55" y="498" width="16" height="148" rx="5" fill="url(#button)"/><rect x="55" y="674" width="16" height="148" rx="5" fill="url(#button)"/>
+  <rect x="1009" y="526" width="16" height="220" rx="5" fill="url(#button)"/>
+  <g stroke="#4b4843" stroke-width="4" opacity=".7"><path d="M193 31v23M887 31v23M193 1866v23M887 1866v23"/></g>
+</svg>

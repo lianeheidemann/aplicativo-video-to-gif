@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="ceramic" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".28" stop-color="#dedfe2"/><stop offset=".52" stop-color="#fafafa"/><stop offset=".78" stop-color="#c9cbd0"/><stop offset="1" stop-color="#f7f7f8"/></linearGradient>
+    <linearGradient id="silver" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#9da0a6"/><stop offset=".5" stop-color="#f3f4f5"/><stop offset="1" stop-color="#8d9096"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-15%" width="140%" height="135%"><feDropShadow dx="0" dy="11" stdDeviation="15" flood-color="#30343a" flood-opacity=".25"/></filter>
+  </defs>
+  <path d="M188 26H892A122 122 0 0 1 1014 148V1772A122 122 0 0 1 892 1894H188A122 122 0 0 1 66 1772V148A122 122 0 0 1 188 26ZM199 61A96 96 0 0 0 103 157V1763A96 96 0 0 0 199 1859H881A96 96 0 0 0 977 1763V157A96 96 0 0 0 881 61Z" fill="url(#ceramic)" fill-rule="evenodd" filter="url(#shadow)"/>
+  <rect x="95" y="53" width="890" height="1814" rx="106" fill="none" stroke="#fff" stroke-width="5"/>
+  <rect x="102" y="60" width="876" height="1800" rx="98" fill="none" stroke="#b5b8be" stroke-width="5"/>
+  <circle cx="540" cy="99" r="22" fill="#0b0c0e"/><circle cx="540" cy="99" r="10" fill="#142239"/><circle cx="534" cy="93" r="4" fill="#83a8d6" opacity=".75"/>
+  <rect x="52" y="383" width="14" height="82" rx="7" fill="url(#silver)"/><rect x="50" y="522" width="16" height="142" rx="8" fill="url(#silver)"/><rect x="50" y="690" width="16" height="142" rx="8" fill="url(#silver)"/>
+  <rect x="1014" y="566" width="16" height="188" rx="8" fill="url(#silver)"/>
+</svg>
