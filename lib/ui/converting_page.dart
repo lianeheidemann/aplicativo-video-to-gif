@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../models/conversion_settings.dart';
 import '../models/size_estimate.dart';
@@ -29,6 +30,7 @@ class _ConvertingPageState extends State<ConvertingPage> {
 
   double _progress = 0;
   String? _error;
+  String? _errorLogs;
   bool _cancelling = false;
 
   @override
@@ -67,7 +69,10 @@ class _ConvertingPageState extends State<ConvertingPage> {
         Navigator.of(context).pop();
         return;
       }
-      setState(() => _error = e.message);
+      setState(() {
+        _error = e.message;
+        _errorLogs = e.logs.trim().isEmpty ? null : e.logs;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Algo deu errado durante a conversão.');
@@ -168,12 +173,58 @@ class _ConvertingPageState extends State<ConvertingPage> {
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
         ),
-        const SizedBox(height: 28),
+        if (_errorLogs != null) ...[
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => _showLogs(context),
+            child: const Text('Ver detalhes técnicos'),
+          ),
+        ],
+        const SizedBox(height: 16),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Voltar e ajustar'),
         ),
       ],
+    );
+  }
+
+  /// Mostra o log bruto do FFmpeg num diálogo rolável, com opção de copiar
+  /// — para o usuário poder relatar o problema com detalhes técnicos em
+  /// vez de só "não deu certo".
+  void _showLogs(BuildContext context) {
+    final logs = _errorLogs!;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Detalhes técnicos'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              logs,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: logs));
+              if (dialogContext.mounted) {
+                ScaffoldMessenger.of(
+                  dialogContext,
+                ).showSnackBar(const SnackBar(content: Text('Log copiado.')));
+              }
+            },
+            child: const Text('Copiar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
     );
   }
 }

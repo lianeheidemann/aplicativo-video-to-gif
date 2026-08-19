@@ -188,6 +188,14 @@ class ConversionSettings {
   /// [outputDimensions] e o serviço de FFmpeg (que usa os mesmos números
   /// para montar os filtros de composição), para as duas contas nunca
   /// ficarem fora de sincronia.
+  ///
+  /// A espessura já sai arredondada para um pixel inteiro aqui — é o mesmo
+  /// valor que [ffmpeg_service.dart] usa no deslocamento do `pad` do
+  /// FFmpeg, então [outputDimensions] soma exatamente esse inteiro (nunca a
+  /// espessura "crua"). Arredondar em dois lugares diferentes (aqui um
+  /// valor, lá outro) podia deixar a borda com espessuras desiguais nos
+  /// dois lados e, no limite, o `pad` menor que a área de conteúdo mais o
+  /// deslocamento — o que faz o FFmpeg abortar a montagem do GIF.
   (int width, int height, double thickness) frameAreaDimensions(
     VideoInfo video,
   ) {
@@ -199,7 +207,7 @@ class ConversionSettings {
     return (
       areaWidth.round(),
       _evenFromDouble(areaHeight),
-      frame.thicknessFor(areaWidth),
+      frame.thicknessFor(areaWidth).roundToDouble(),
     );
   }
 
