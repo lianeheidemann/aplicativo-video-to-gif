@@ -1,0 +1,296 @@
+name: Apply transparent GIF fix from main
+
+on:
+  push:
+    branches: ['main']
+
+permissions:
+  contents: write
+
+jobs:
+  patch-transparent-export:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout da branch de correção
+        uses: actions/checkout@v4
+        with:
+          ref: fix/transparent-gif-export
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.0'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Aplicar pipeline transparente em uma única execução
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/services/ffmpeg_service.dart')
+          text = path.read_text()
+
+          marker = """  /// Caminho do PNG de máscara (gerado por [rasterizeCornerMask]) para
+"""
+          if marker not in text:
+              raise SystemExit('Ponto de inserção do helper transparente não encontrado')
+
+          helper = r'''  /// Exporta GIF com transparência em um único grafo de filtros.
+  ///
+  /// A versão anterior gerava a paleta em uma sessão e depois abria vídeo,
+  /// paleta e máscara em uma segunda sessão. No Android essa segunda sessão
+  /// podia falhar no encadeamento `alphamerge` + `paletteuse`. Aqui a máscara,
+  /// a geração da paleta e a aplicação da paleta ficam no mesmo grafo, sem
+  /// reabrir uma paleta PNG intermediária.
+  List<String> _transparentGifArgs({
+    required VideoInfo video,
+    required ConversionSettings settings,
+    required String maskPath,
+    required String outputPath,
+    int? frameLimit,
+  }) {
+    final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
+    final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
+
+    return [
+      '-y',
+      '-ss',
+      _seconds(settings.startSeconds),
+      '-t',
+      _seconds(settings.sourceDurationSeconds),
+      '-i',
+      video.path,
+      '-loop',
+      '1',
+      '-framerate',
+      '${settings.fps}',
+      '-i',
+      maskPath,
+      '-lavfi',
+      '$graph;'
+          '[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
+          '[1:v]format=gray,fps=${settings.fps},setpts=PTS-STARTPTS[mask_gray];'
+          '[framed_rgba][mask_gray]alphamerge=shortest=1[alpha];'
+          '[alpha]split=2[palette_source][gif_source];'
+          '[palette_source]palettegen=max_colors=${settings.colors}'
+          ':stats_mode=${settings.palette.statsMode}'
+          ':reserve_transparent=1[palette];'
+          '[gif_source][palette]paletteuse=dither=${settings.dither.ffmpegValue}'
+          ':diff_mode=rectangle$newPalette:alpha_threshold=128[out]',
+      '-map',
+      '[out]',
+      '-loop',
+      settings.loop ? '0' : '-1',
+      '-an',
+      if (frameLimit != null) ...['-frames:v', '$frameLimit'],
+      '-f',
+      'gif',
+      outputPath,
+    ];
+  }
+
+'''
+
+          if '_transparentGifArgs({' not in text:
+              text = text.replace(marker, helper + marker, 1)
+
+          old_convert = r'''      // A geração da paleta lê o trecho inteiro, então vale cerca de um terço
+      // do tempo total. Repartimos a barra de progresso nessa proporção.
+      await _run(
+        _paletteGenArgs(
+          video: video,
+          settings: settings,
+          palettePath: palettePath,
+          maskPath: maskPath,
+        ),
+        onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
+        step: 'geração da paleta',
+      );
+
+      if (_cancelled) throw FfmpegException('Conversão cancelada.');
+
+      await _run(
+        _paletteUseArgs(
+          video: video,
+          settings: settings,
+          palettePath: palettePath,
+          outputPath: outputPath,
+          maskPath: maskPath,
+        ),
+        onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
+        step: 'montagem do GIF',
+      );
+'''
+
+          new_convert = r'''      if (maskPath != null) {
+        // Transparência usa um único grafo. Isso evita a segunda sessão com
+        // três entradas (vídeo + paleta + máscara), que falhava em Android.
+        await _run(
+          _transparentGifArgs(
+            video: video,
+            settings: settings,
+            maskPath: maskPath,
+            outputPath: outputPath,
+          ),
+          onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs)),
+          step: 'montagem do GIF transparente',
+        );
+      } else {
+        // Sem transparência mantemos as duas passagens tradicionais, que são
+        // estáveis e produzem uma paleta otimizada para o trecho inteiro.
+        await _run(
+          _paletteGenArgs(
+            video: video,
+            settings: settings,
+            palettePath: palettePath,
+          ),
+          onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
+          step: 'geração da paleta',
+        );
+
+        if (_cancelled) throw FfmpegException('Conversão cancelada.');
+
+        await _run(
+          _paletteUseArgs(
+            video: video,
+            settings: settings,
+            palettePath: palettePath,
+            outputPath: outputPath,
+          ),
+          onTimeMs: (ms) =>
+              onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
+          step: 'montagem do GIF',
+        );
+      }
+'''
+
+          if old_convert not in text:
+              raise SystemExit('Bloco de conversão esperado não encontrado')
+          text = text.replace(old_convert, new_convert, 1)
+
+          old_calibrate = r'''          await _run(
+            _paletteGenArgs(
+              video: video,
+              settings: sample,
+              palettePath: palettePath,
+              maskPath: maskPath,
+            ),
+            step: 'medição',
+          );
+          await _run(
+            _paletteUseArgs(
+              video: video,
+              settings: sample,
+              palettePath: palettePath,
+              outputPath: gifPath,
+              maskPath: maskPath,
+            ),
+            step: 'medição',
+          );
+          await _run(
+            _paletteUseArgs(
+              video: video,
+              settings: sample,
+              palettePath: palettePath,
+              outputPath: firstFramePath,
+              maskPath: maskPath,
+              frameLimit: 1,
+            ),
+            step: 'medição',
+          );
+'''
+
+          new_calibrate = r'''          if (maskPath != null) {
+            await _run(
+              _transparentGifArgs(
+                video: video,
+                settings: sample,
+                maskPath: maskPath,
+                outputPath: gifPath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _transparentGifArgs(
+                video: video,
+                settings: sample,
+                maskPath: maskPath,
+                outputPath: firstFramePath,
+                frameLimit: 1,
+              ),
+              step: 'medição',
+            );
+          } else {
+            await _run(
+              _paletteGenArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _paletteUseArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+                outputPath: gifPath,
+              ),
+              step: 'medição',
+            );
+            await _run(
+              _paletteUseArgs(
+                video: video,
+                settings: sample,
+                palettePath: palettePath,
+                outputPath: firstFramePath,
+                frameLimit: 1,
+              ),
+              step: 'medição',
+            );
+          }
+'''
+
+          if old_calibrate not in text:
+              raise SystemExit('Bloco de calibração esperado não encontrado')
+          text = text.replace(old_calibrate, new_calibrate, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Formatar
+        run: dart format lib/services/ffmpeg_service.dart
+
+      - name: Análise estática
+        run: flutter analyze
+
+      - name: Testes
+        run: flutter test
+
+      - name: Build Android de debug
+        run: flutter build apk --debug
+
+      - name: Limpar arquivos temporários da branch e commit da correção
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+          if [ -f .github/workflows/apply-transparent-fix.yml ]; then
+            git rm .github/workflows/apply-transparent-fix.yml
+          fi
+          git add lib/services/ffmpeg_service.dart .github/workflows/ci.yml
+          git commit -m "Corrige exportação GIF com fundo transparente"
+          git push origin HEAD:fix/transparent-gif-export
+
+      - name: Remover este workflow temporário da main
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          git rm .github/workflows/apply-transparent-fix-main.yml
+          git commit -m "Remove workflow temporário da correção transparente"
+          git push origin main
