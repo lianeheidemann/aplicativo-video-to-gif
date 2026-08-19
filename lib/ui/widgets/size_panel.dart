@@ -163,9 +163,7 @@ class SizePanel extends StatelessWidget {
         const SizedBox(height: 18),
         FilledButton.icon(
           onPressed: onConvert,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(60),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60)),
           icon: const Icon(Icons.swap_horiz_rounded),
           label: const Text('Converter em GIF'),
         ),
