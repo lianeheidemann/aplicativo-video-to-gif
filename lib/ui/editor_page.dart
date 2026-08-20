@@ -598,10 +598,7 @@ class _EditorPageState extends State<EditorPage> {
           ],
           const SizedBox(width: 8),
           for (final asset in imageAssets) ...[
-            _imageFrameThumb(
-              asset,
-              selected: asset.id == frame.imageFrame?.id,
-            ),
+            _imageFrameThumb(asset, selected: asset.id == frame.imageFrame?.id),
             const SizedBox(width: 10),
           ],
           _importFrameThumb(),
