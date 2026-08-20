@@ -662,12 +662,6 @@ class FfmpegService {
     required String outputPath,
     int? frameLimit,
   }) {
-    // GIF só possui transparência binária. Em vez de cortar toda a borda no
-    // mesmo limiar (o que cria uma linha serrilhada evidente), uma matriz
-    // Bayer 2×2 distribui os pixels de cobertura parcial entre transparente
-    // e opaco. O contorno parece mais suave sem introduzir uma cor de halo.
-    const alphaDither =
-        "geq=lum='if(gt(lum(X,Y),if(eq(mod(Y,2),0),if(eq(mod(X,2),0),32,160),if(eq(mod(X,2),0),224,96))),255,0)'";
     final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
 
@@ -689,8 +683,8 @@ class FfmpegService {
       '$graph;'
           '[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
           '[1:v]format=gray,fps=${settings.fps},'
-          'setpts=PTS-STARTPTS,$alphaDither[mask_dithered];'
-          '[framed_rgba][mask_dithered]alphamerge=shortest=1[alpha];'
+          'setpts=PTS-STARTPTS[mask_gray];'
+          '[framed_rgba][mask_gray]alphamerge=shortest=1[alpha];'
           '[alpha]split=2[palette_source][gif_source];'
           '[palette_source]palettegen=max_colors=${settings.colors}'
           ':stats_mode=${settings.palette.statsMode}'
