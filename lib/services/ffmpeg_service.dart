@@ -289,10 +289,7 @@ class FfmpegService {
       );
     } else {
       final radius = innerRadius.toStringAsFixed(3);
-      final roundedMask =
-          "geq=lum='clip(($radius+0.5-hypot("
-          'max(abs(X-(W-1)/2)-((W-1)/2-$radius),0),'
-          "max(abs(Y-(H-1)/2)-((H-1)/2-$radius),0)))*255,0,255)'";
+      final roundedMask = "geq=lum='clip(($radius+0.5-hypot(max(abs(X-(W-1)/2)-((W-1)/2-$radius),0),max(abs(Y-(H-1)/2)-((H-1)/2-$radius),0)))*255,0,255)'";
       parts.add(
         'color=white:s=${areaWidth}x$areaHeight:r=${settings.fps}:'
         'd=${_seconds(settings.outputDurationSeconds)},format=gray,'
@@ -680,10 +677,7 @@ class FfmpegService {
     // mesmo limiar (o que cria uma linha serrilhada evidente), uma matriz
     // Bayer 2×2 distribui os pixels de cobertura parcial entre transparente
     // e opaco. O contorno parece mais suave sem introduzir uma cor de halo.
-    const alphaDither =
-        "geq=lum='if(gt(lum(X,Y),if(eq(mod(Y,2),0),"
-        'if(eq(mod(X,2),0),64,192),'
-        "if(eq(mod(X,2),0),255,128))),255,0)'";
+    const alphaDither = "geq=lum='if(gt(lum(X,Y),if(eq(mod(Y,2),0),if(eq(mod(X,2),0),64,192),if(eq(mod(X,2),0),255,128))),255,0)'";
     final graph = _framedGraph(
       settings,
       video,
