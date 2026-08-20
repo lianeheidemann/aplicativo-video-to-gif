@@ -121,12 +121,10 @@ class FramePainter extends CustomPainter {
   );
 }
 
-/// Rasteriza uma máscara de transparência: branco dentro do retângulo
-/// arredondado de raio [outerRadius] (canvas de [width]x[height]), preto
-/// fora dele. Usada pelo FFmpeg (via `alphamerge`) para recortar os 4
-/// cantos do canvas que sobram fora da moldura quando "Fundo transparente"
-/// está ligado — o GIF só suporta transparência de 1 bit, então a máscara
-/// vira exatamente essa decisão binária por pixel.
+/// Rasteriza uma máscara em escala de cinza com antialias para o contorno
+/// arredondado. O FFmpeg reutiliza esta cobertura suave no recorte interno do
+/// vídeo e a converte em transparência binária ditherizada apenas na borda
+/// externa do GIF.
 Future<Uint8List> rasterizeCornerMask(
   int width,
   int height,
@@ -136,7 +134,9 @@ Future<Uint8List> rasterizeCornerMask(
   canvas.drawRect(rect, Paint()..color = Colors.black);
   canvas.drawRRect(
     RRect.fromRectAndRadius(rect, Radius.circular(outerRadius)),
-    Paint()..color = Colors.white,
+    Paint()
+      ..color = Colors.white
+      ..isAntiAlias = true,
   );
 });
 

@@ -21,9 +21,9 @@ void main() {
       'o deslocamento do pad nunca ultrapassa o canvas, em qualquer largura',
       () {
         // Regressão: com moldura + fundo transparente, o FFmpeg monta o
-        // quadro com `pad=canvasWidth:canvasHeight:thicknessPx:thicknessPx`.
-        // Se o offset (thicknessPx) mais a área de conteúdo passar do
-        // canvas, o `pad` do FFmpeg aborta a montagem do GIF. Isso
+        // quadro posicionando o vídeo no offset `thicknessPx:thicknessPx`.
+        // Se o offset mais a área de conteúdo passar do canvas, o overlay
+        // do FFmpeg deixa a borda assimétrica. Isso
         // acontecia quando a espessura era arredondada de formas
         // diferentes em [ConversionSettings.frameAreaDimensions] (para o
         // canvas) e em `FfmpegService._framedGraph` (para o offset do
