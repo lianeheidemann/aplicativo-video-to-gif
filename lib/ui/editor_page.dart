@@ -516,8 +516,8 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Seção "Moldura": uma única lista de opções (estilos procedurais e
-  /// molduras de imagem lado a lado, já que só uma fica ativa por vez), e —
+  /// Seção "Moldura": duas fileiras de opções — estilos procedurais e
+  /// molduras de imagem prontas —, já que só uma fica ativa por vez, e —
   /// quando um estilo procedural está ativo — cor, espessura, cantos e o
   /// switch de fundo transparente.
   Widget _frameStyleSection() {
@@ -532,7 +532,16 @@ class _EditorPageState extends State<EditorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _frameOptionThumbnails(),
+          _frameStyleThumbnails(),
+          const SizedBox(height: 18),
+          Text(
+            'Molduras de imagem',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _imageFrameThumbnails(),
           if (frame.style != FrameStyle.none && frame.imageFrame == null) ...[
             const SizedBox(height: 18),
             _sectionCard(
@@ -573,36 +582,29 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Lista horizontal única com todas as opções de moldura: primeiro os
-  /// estilos procedurais ([FrameStyle]), depois — com um respiro maior, não
-  /// uma segunda lista — as molduras de imagem prontas
-  /// ([ImageFrameLibrary.bundled]) e as importadas pelo usuário, terminando
-  /// no botão "+" para importar mais. Uma única lista porque as duas
-  /// famílias de moldura são mutuamente exclusivas (ver [_selectFrameStyle]
-  /// e [_selectImageFrame]): nunca há duas miniaturas marcadas ao mesmo
-  /// tempo.
-  Widget _frameOptionThumbnails() {
+  /// Linha horizontal com uma miniatura por [FrameStyle], cada uma já
+  /// desenhada com o [FramePainter] real do estilo — a miniatura é a
+  /// prévia, não um ícone genérico. Só fica marcada quando não há moldura
+  /// de imagem ativa: as duas famílias são mutuamente exclusivas (ver
+  /// [_selectFrameStyle] e [_selectImageFrame]), e sem essa checagem a
+  /// miniatura "Sem moldura" ficaria marcada ao mesmo tempo que uma
+  /// moldura de imagem, já que selecionar uma sempre zera [FrameStyle]
+  /// para [FrameStyle.none].
+  Widget _frameStyleThumbnails() {
     final frame = _settings.frame;
-    final imageAssets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
     return SizedBox(
       height: 108,
-      child: ListView(
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        children: [
-          for (final style in FrameStyle.values) ...[
-            _frameStyleThumb(
-              style,
-              selected: frame.imageFrame == null && style == frame.style,
-            ),
-            const SizedBox(width: 10),
-          ],
-          const SizedBox(width: 8),
-          for (final asset in imageAssets) ...[
-            _imageFrameThumb(asset, selected: asset.id == frame.imageFrame?.id),
-            const SizedBox(width: 10),
-          ],
-          _importFrameThumb(),
-        ],
+        itemCount: FrameStyle.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final style = FrameStyle.values[index];
+          return _frameStyleThumb(
+            style,
+            selected: frame.imageFrame == null && style == frame.style,
+          );
+        },
       ),
     );
   }
@@ -686,6 +688,12 @@ class _EditorPageState extends State<EditorPage> {
   /// ela, estilos com espessura pequena (ex. "Bordas finas") ou canto pouco
   /// arredondado (ex. "Celular Clássico") ficam indistinguíveis de um
   /// bloco sólido, já que não há vídeo por baixo nesta miniatura.
+  ///
+  /// A margem da "tela" é fixa (proporção do tamanho da própria miniatura),
+  /// não a espessura real do estilo: a espessura real é calibrada para o
+  /// canvas de exportação (centenas de pixels) e, escalada para os ~40px
+  /// desta miniatura, ficaria sub-pixel — a moldura pareceria um bloco
+  /// sólido de novo, exatamente o problema que essa margem resolve.
   Widget _frameStyleGlyph(FrameStyle style, {required Color color}) {
     if (style == FrameStyle.none) {
       return Icon(
@@ -694,24 +702,33 @@ class _EditorPageState extends State<EditorPage> {
         color: color.withValues(alpha: 0.6),
       );
     }
-    final settings = FrameSettings(
-      style: style,
-      color: color,
-      thicknessAtReference: style.defaultThickness,
-      corner: style.defaultCorner,
-      transparentBackground: true,
-    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        final geometry = FrameGeometry.of(size, settings);
+        final outerRadius = style.defaultCorner.radiusRatio * size.shortestSide;
+        final inset = size.shortestSide * 0.22;
+        final innerRadius = (outerRadius - inset).clamp(0.0, outerRadius);
         return Stack(
           children: [
-            CustomPaint(size: size, painter: FramePainter(settings)),
-            Positioned.fromRect(
-              rect: geometry.contentRect,
+            CustomPaint(
+              size: size,
+              painter: FramePainter(
+                FrameSettings(
+                  style: style,
+                  color: color,
+                  thicknessAtReference: style.defaultThickness,
+                  corner: style.defaultCorner,
+                  transparentBackground: true,
+                ),
+              ),
+            ),
+            Positioned(
+              left: inset,
+              top: inset,
+              right: inset,
+              bottom: inset,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(geometry.innerRadius),
+                borderRadius: BorderRadius.circular(innerRadius),
                 child: ColoredBox(color: Colors.black.withValues(alpha: 0.55)),
               ),
             ),
@@ -734,6 +751,27 @@ class _EditorPageState extends State<EditorPage> {
         corner: style.defaultCorner,
         thicknessAtReference: style.defaultThickness,
         clearImageFrame: true,
+      ),
+    );
+  }
+
+  /// Fileira horizontal com as molduras de imagem prontas do app
+  /// ([ImageFrameLibrary.bundled]), as importadas pelo usuário, e um botão
+  /// "+" para importar mais.
+  Widget _imageFrameThumbnails() {
+    final selected = _settings.frame.imageFrame;
+    final assets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: assets.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (index == assets.length) return _importFrameThumb();
+          final asset = assets[index];
+          return _imageFrameThumb(asset, selected: asset.id == selected?.id);
+        },
       ),
     );
   }
