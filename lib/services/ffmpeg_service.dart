@@ -211,9 +211,10 @@ class FfmpegService {
   /// Grafo de filtro completo pronto para `-lavfi`: [input] (ex.: `0:v`) até
   /// [output], já com a moldura aplicada — conteúdo ([buildVideoFilter])
   /// ajustado à área da moldura conforme [ConversionSettings.frame]'s
-  /// modo de ajuste, depois preenchido com a borda até o tamanho final
-  /// ([ConversionSettings.outputDimensions]). Só deve ser chamado quando
-  /// há moldura ativa (`frame.style != FrameStyle.none`).
+  /// modo de ajuste, recortado pelos cantos internos e composto sobre o
+  /// fundo colorido no tamanho final ([ConversionSettings.outputDimensions]).
+  /// Só deve ser chamado quando há moldura ativa
+  /// (`frame.style != FrameStyle.none`).
   String _framedGraph(
     ConversionSettings settings,
     VideoInfo video, {
@@ -230,6 +231,11 @@ class FfmpegService {
     final (canvasWidth, canvasHeight) = settings.outputDimensions(video);
     final colorHex = _ffmpegColor(frame.color);
     final thicknessPx = thickness.round();
+    final geometry = FrameGeometry.of(
+      Size(canvasWidth.toDouble(), canvasHeight.toDouble()),
+      frame,
+    );
+    final innerRadius = geometry.innerRadius;
 
     final parts = <String>['[$input]$contentFilter[content]'];
 
@@ -271,9 +277,37 @@ class FfmpegService {
       }
     }
 
+    // A prévia recorta o vídeo pelo raio interno e o desenha sobre a moldura.
+    // A exportação precisa manter essa mesma ordem: primeiro o fundo colorido,
+    // depois o vídeo já recortado. Um `pad` simples deixava o vídeo retangular
+    // e uma composição invertida fazia a borda cobrir parte dele.
+    parts.add('[fitted]format=rgba,setpts=PTS-STARTPTS[fitted_rgba]');
+    if (innerRadius <= 0) {
+      parts.add(
+        'color=white:s=${areaWidth}x$areaHeight:r=${settings.fps}:'
+        'd=${_seconds(settings.outputDurationSeconds)},format=gray[inner_mask]',
+      );
+    } else {
+      final radius = innerRadius.toStringAsFixed(3);
+      final roundedMask =
+          "geq=lum='clip(($radius+0.5-hypot(max(abs(X-(W-1)/2)-((W-1)/2-$radius),0),max(abs(Y-(H-1)/2)-((H-1)/2-$radius),0)))*255,0,255)'";
+      parts.add(
+        'color=white:s=${areaWidth}x$areaHeight:r=${settings.fps}:'
+        'd=${_seconds(settings.outputDurationSeconds)},format=gray,'
+        '$roundedMask[inner_mask]',
+      );
+    }
     parts.add(
-      '[fitted]pad=$canvasWidth:$canvasHeight:$thicknessPx:$thicknessPx:'
-      'color=$colorHex[$output]',
+      '[fitted_rgba][inner_mask]alphamerge=shortest=1[rounded_content]',
+    );
+    parts.add(
+      'color=c=$colorHex:s=${canvasWidth}x$canvasHeight:'
+      'r=${settings.fps}:d=${_seconds(settings.outputDurationSeconds)}'
+      '[frame_background]',
+    );
+    parts.add(
+      '[frame_background][rounded_content]overlay='
+      '$thicknessPx:$thicknessPx:shortest=1:repeatlast=0[$output]',
     );
 
     return parts.join(';');
@@ -511,10 +545,11 @@ class FfmpegService {
       ];
     }
 
+    final transparent = settings.frame.transparentBackground;
     final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
-    final reserve = maskPath != null ? ':reserve_transparent=1' : '';
-    final paletteLabel = maskPath != null ? 'alpha' : 'framed';
-    final maskStage = maskPath != null
+    final reserve = transparent ? ':reserve_transparent=1' : '';
+    final paletteLabel = transparent ? 'alpha' : 'framed';
+    final maskStage = transparent
         ? ';[framed][1:v]alphamerge[$paletteLabel]'
         : '';
 
@@ -530,7 +565,7 @@ class FfmpegService {
         '-loop',
         '1',
         '-t',
-        _seconds(settings.sourceDurationSeconds),
+        _seconds(settings.outputDurationSeconds),
         '-i',
         maskPath,
       ],
@@ -579,12 +614,11 @@ class FfmpegService {
       ];
     }
 
+    final transparent = settings.frame.transparentBackground;
     final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
-    final useLabel = maskPath != null ? 'alpha' : 'framed';
-    final maskStage = maskPath != null
-        ? ';[framed][2:v]alphamerge[$useLabel]'
-        : '';
-    final alphaThreshold = maskPath != null ? ':alpha_threshold=128' : '';
+    final useLabel = transparent ? 'alpha' : 'framed';
+    final maskStage = transparent ? ';[framed][2:v]alphamerge[$useLabel]' : '';
+    final alphaThreshold = transparent ? ':alpha_threshold=128' : '';
 
     return [
       '-y',
@@ -600,7 +634,7 @@ class FfmpegService {
         '-loop',
         '1',
         '-t',
-        _seconds(settings.sourceDurationSeconds),
+        _seconds(settings.outputDurationSeconds),
         '-i',
         maskPath,
       ],
@@ -648,7 +682,8 @@ class FfmpegService {
       '-lavfi',
       '$graph;'
           '[framed]format=rgba,setpts=PTS-STARTPTS[framed_rgba];'
-          '[1:v]format=gray,fps=${settings.fps},setpts=PTS-STARTPTS[mask_gray];'
+          '[1:v]format=gray,fps=${settings.fps},'
+          'setpts=PTS-STARTPTS[mask_gray];'
           '[framed_rgba][mask_gray]alphamerge=shortest=1[alpha];'
           '[alpha]split=2[palette_source][gif_source];'
           '[palette_source]palettegen=max_colors=${settings.colors}'
@@ -675,7 +710,9 @@ class FfmpegService {
     required String stamp,
   }) async {
     final frame = settings.frame;
-    if (frame.style == FrameStyle.none || !frame.transparentBackground) {
+    if (frame.style == FrameStyle.none ||
+        frame.imageFrame != null ||
+        !frame.transparentBackground) {
       return null;
     }
 
@@ -759,7 +796,7 @@ class FfmpegService {
         stamp: '$stamp',
       );
 
-      if (maskPath != null) {
+      if (maskPath != null && settings.frame.transparentBackground) {
         await _run(
           _transparentGifArgs(
             video: video,
@@ -776,6 +813,7 @@ class FfmpegService {
             video: video,
             settings: settings,
             palettePath: palettePath,
+            maskPath: maskPath,
           ),
           onTimeMs: (ms) => onProgress?.call(_ratio(ms, totalMs) * 0.35),
           step: 'geração da paleta',
@@ -789,6 +827,7 @@ class FfmpegService {
             settings: settings,
             palettePath: palettePath,
             outputPath: outputPath,
+            maskPath: maskPath,
           ),
           onTimeMs: (ms) => onProgress?.call(0.35 + _ratio(ms, totalMs) * 0.65),
           step: 'montagem do GIF',
@@ -935,7 +974,7 @@ class FfmpegService {
               ),
               step: 'medição',
             );
-          } else if (maskPath != null) {
+          } else if (maskPath != null && sample.frame.transparentBackground) {
             await _run(
               _transparentGifArgs(
                 video: video,
@@ -961,6 +1000,7 @@ class FfmpegService {
                 video: video,
                 settings: sample,
                 palettePath: palettePath,
+                maskPath: maskPath,
               ),
               step: 'medição',
             );
@@ -970,6 +1010,7 @@ class FfmpegService {
                 settings: sample,
                 palettePath: palettePath,
                 outputPath: gifPath,
+                maskPath: maskPath,
               ),
               step: 'medição',
             );
@@ -979,6 +1020,7 @@ class FfmpegService {
                 settings: sample,
                 palettePath: palettePath,
                 outputPath: firstFramePath,
+                maskPath: maskPath,
                 frameLimit: 1,
               ),
               step: 'medição',
