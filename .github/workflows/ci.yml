@@ -35,9 +35,7 @@ jobs:
       # análise e de teste, que só aparecem no push seguinte.
       - name: Conferir formatação
         if: ${{ !cancelled() }}
-        run: |
-          dart format lib test
-          git diff --exit-code
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Análise estática
         if: ${{ !cancelled() }}
