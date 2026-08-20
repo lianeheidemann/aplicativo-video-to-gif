@@ -16,7 +16,7 @@ enum FrameStyle {
   slim(
     'Celular Slim',
     targetAspectRatio: 9 / 19.5,
-    defaultCorner: CornerStyle.full,
+    defaultCorner: CornerStyle.large,
     defaultThickness: 10,
   ),
   classic(

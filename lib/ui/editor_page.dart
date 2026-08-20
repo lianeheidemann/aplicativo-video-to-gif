@@ -516,29 +516,23 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Seção "Molduras": estilo (miniaturas), e — quando há moldura — cor,
-  /// espessura, cantos e o switch de fundo transparente.
+  /// Seção "Moldura": uma única lista de opções (estilos procedurais e
+  /// molduras de imagem lado a lado, já que só uma fica ativa por vez), e —
+  /// quando um estilo procedural está ativo — cor, espessura, cantos e o
+  /// switch de fundo transparente.
   Widget _frameStyleSection() {
     final theme = Theme.of(context);
     final frame = _settings.frame;
 
     return LabeledSection(
       icon: Icons.smartphone_rounded,
-      title: 'Molduras',
-      value: frame.style.label,
+      title: 'Moldura',
+      value: frame.imageFrame?.label ?? frame.style.label,
+      hint: 'Escolha uma opção — apenas uma moldura fica ativa por vez.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _frameStyleThumbnails(),
-          const SizedBox(height: 18),
-          Text(
-            'Molduras de imagem',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _imageFrameThumbnails(),
+          _frameOptionThumbnails(),
           if (frame.style != FrameStyle.none && frame.imageFrame == null) ...[
             const SizedBox(height: 18),
             _sectionCard(
@@ -579,21 +573,36 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Linha horizontal com uma miniatura por [FrameStyle], cada uma já
-  /// desenhada com o [FramePainter] real do estilo — a miniatura é a
-  /// prévia, não um ícone genérico.
-  Widget _frameStyleThumbnails() {
-    final selected = _settings.frame.style;
+  /// Lista horizontal única com todas as opções de moldura: primeiro os
+  /// estilos procedurais ([FrameStyle]), depois — com um respiro maior, não
+  /// uma segunda lista — as molduras de imagem prontas
+  /// ([ImageFrameLibrary.bundled]) e as importadas pelo usuário, terminando
+  /// no botão "+" para importar mais. Uma única lista porque as duas
+  /// famílias de moldura são mutuamente exclusivas (ver [_selectFrameStyle]
+  /// e [_selectImageFrame]): nunca há duas miniaturas marcadas ao mesmo
+  /// tempo.
+  Widget _frameOptionThumbnails() {
+    final frame = _settings.frame;
+    final imageAssets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
     return SizedBox(
       height: 108,
-      child: ListView.separated(
+      child: ListView(
         scrollDirection: Axis.horizontal,
-        itemCount: FrameStyle.values.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final style = FrameStyle.values[index];
-          return _frameStyleThumb(style, selected: style == selected);
-        },
+        children: [
+          for (final style in FrameStyle.values) ...[
+            _frameStyleThumb(
+              style,
+              selected: frame.imageFrame == null && style == frame.style,
+            ),
+            const SizedBox(width: 10),
+          ],
+          const SizedBox(width: 8),
+          for (final asset in imageAssets) ...[
+            _imageFrameThumb(asset, selected: asset.id == frame.imageFrame?.id),
+            const SizedBox(width: 10),
+          ],
+          _importFrameThumb(),
+        ],
       ),
     );
   }
@@ -671,10 +680,12 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   /// Miniatura de um [FrameStyle]: para "Sem moldura", um ícone simples;
-  /// para os demais, o próprio [FramePainter] renderizado com os valores
-  /// padrão do estilo e fundo transparente (para os cantos ficarem visíveis
-  /// na miniatura, independente do que o usuário tiver escolhido no
-  /// switch "Fundo transparente").
+  /// para os demais, o [FramePainter] real do estilo (mesmos padrões de
+  /// canto/espessura, fundo transparente para os cantos ficarem visíveis)
+  /// com uma "tela" escura desenhada por cima da janela de conteúdo — sem
+  /// ela, estilos com espessura pequena (ex. "Bordas finas") ou canto pouco
+  /// arredondado (ex. "Celular Clássico") ficam indistinguíveis de um
+  /// bloco sólido, já que não há vídeo por baixo nesta miniatura.
   Widget _frameStyleGlyph(FrameStyle style, {required Color color}) {
     if (style == FrameStyle.none) {
       return Icon(
@@ -683,16 +694,30 @@ class _EditorPageState extends State<EditorPage> {
         color: color.withValues(alpha: 0.6),
       );
     }
-    return CustomPaint(
-      painter: FramePainter(
-        FrameSettings(
-          style: style,
-          color: color,
-          thicknessAtReference: style.defaultThickness,
-          corner: style.defaultCorner,
-          transparentBackground: true,
-        ),
-      ),
+    final settings = FrameSettings(
+      style: style,
+      color: color,
+      thicknessAtReference: style.defaultThickness,
+      corner: style.defaultCorner,
+      transparentBackground: true,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.biggest;
+        final geometry = FrameGeometry.of(size, settings);
+        return Stack(
+          children: [
+            CustomPaint(size: size, painter: FramePainter(settings)),
+            Positioned.fromRect(
+              rect: geometry.contentRect,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(geometry.innerRadius),
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.55)),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -709,27 +734,6 @@ class _EditorPageState extends State<EditorPage> {
         corner: style.defaultCorner,
         thicknessAtReference: style.defaultThickness,
         clearImageFrame: true,
-      ),
-    );
-  }
-
-  /// Fileira horizontal com as molduras de imagem prontas do app
-  /// ([ImageFrameLibrary.bundled]), as importadas pelo usuário, e um botão
-  /// "+" para importar mais.
-  Widget _imageFrameThumbnails() {
-    final selected = _settings.frame.imageFrame;
-    final assets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
-    return SizedBox(
-      height: 108,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: assets.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          if (index == assets.length) return _importFrameThumb();
-          final asset = assets[index];
-          return _imageFrameThumb(asset, selected: asset.id == selected?.id);
-        },
       ),
     );
   }
