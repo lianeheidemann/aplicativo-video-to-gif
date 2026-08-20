@@ -667,7 +667,7 @@ class FfmpegService {
     // Bayer 2×2 distribui os pixels de cobertura parcial entre transparente
     // e opaco. O contorno parece mais suave sem introduzir uma cor de halo.
     const alphaDither =
-        "geq=lum='if(gt(lum(X,Y),if(eq(mod(Y,2),0),if(eq(mod(X,2),0),64,192),if(eq(mod(X,2),0),255,128))),255,0)'";
+        "geq=lum='if(gt(lum(X,Y),if(eq(mod(Y,2),0),if(eq(mod(X,2),0),32,160),if(eq(mod(X,2),0),224,96))),255,0)'";
     final graph = _framedGraph(settings, video, input: '0:v', output: 'framed');
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
 
