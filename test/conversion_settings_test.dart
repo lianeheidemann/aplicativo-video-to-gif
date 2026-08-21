@@ -29,11 +29,18 @@ void main() {
         // canvas) e em `FfmpegService._framedGraph` (para o offset do
         // pad) — ver histórico desta constante.
         for (final style in [
-          FrameStyle.slim,
-          FrameStyle.classic,
           FrameStyle.thin,
+          FrameStyle.medium,
+          FrameStyle.thick,
         ]) {
-          for (final corner in CornerStyle.values) {
+          // Do canto reto ao completamente arredondado, incluindo os
+          // extremos do slider.
+          for (final cornerRatio in const [
+            0.0,
+            0.12,
+            0.25,
+            FrameSettings.maxCornerRatio,
+          ]) {
             for (var w = 2; w <= 2000; w += 2) {
               final settings = ConversionSettings(
                 startSeconds: 0,
@@ -42,7 +49,7 @@ void main() {
                 frame: FrameSettings(
                   style: style,
                   thicknessAtReference: style.defaultThickness,
-                  corner: corner,
+                  cornerRatio: cornerRatio,
                   transparentBackground: true,
                 ),
               );
@@ -57,12 +64,12 @@ void main() {
               expect(
                 thicknessPx + areaWidth,
                 lessThanOrEqualTo(canvasWidth),
-                reason: 'largura: style=$style corner=$corner w=$w',
+                reason: 'largura: style=$style canto=$cornerRatio w=$w',
               );
               expect(
                 thicknessPx + areaHeight,
                 lessThanOrEqualTo(canvasHeight),
-                reason: 'altura: style=$style corner=$corner w=$w',
+                reason: 'altura: style=$style canto=$cornerRatio w=$w',
               );
 
               // A borda deve sair sempre simétrica (mesma espessura dos
