@@ -282,28 +282,21 @@ class FfmpegService {
     // depois o vídeo já recortado. Um `pad` simples deixava o vídeo retangular
     // e uma composição invertida fazia a borda cobrir parte dele.
     parts.add('[fitted]format=rgba,setpts=PTS-STARTPTS[fitted_rgba]');
-    if (innerRadius <= 0) {
-      parts.add(
-        'color=white:s=${areaWidth}x$areaHeight:r=${settings.fps}:'
-        'd=${_seconds(settings.outputDurationSeconds)},format=gray[inner_mask]',
-      );
-    } else {
-      final radius = innerRadius.toStringAsFixed(3);
-      final roundedMask =
-          "geq=lum='clip(($radius+0.5-hypot(max(abs(X-(W-1)/2)-((W-1)/2-$radius),0),max(abs(Y-(H-1)/2)-((H-1)/2-$radius),0)))*255,0,255)'";
-      parts.add(
-        'color=white:s=${areaWidth}x$areaHeight:r=${settings.fps}:'
-        'd=${_seconds(settings.outputDurationSeconds)},format=gray,'
-        '$roundedMask[inner_mask]',
-      );
-    }
+    parts.add(
+      '${_grayCanvas(settings, areaWidth, areaHeight)}'
+      '${_roundedLumaChain(innerRadius)}[inner_mask]',
+    );
     parts.add(
       '[fitted_rgba][inner_mask]alphamerge=shortest=1[rounded_content]',
     );
-    parts.add(
-      'color=c=$colorHex:s=${canvasWidth}x$canvasHeight:'
-      'r=${settings.fps}:d=${_seconds(settings.outputDurationSeconds)}'
-      '[frame_background]',
+    parts.addAll(
+      _frameBackgroundParts(
+        settings,
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight,
+        colorHex: colorHex,
+        outerRadius: geometry.outerRadius,
+      ),
     );
     parts.add(
       '[frame_background][rounded_content]overlay='
@@ -311,6 +304,63 @@ class FfmpegService {
     );
 
     return parts.join(';');
+  }
+
+  /// Fonte `color` branca em escala de cinza do tamanho pedido, com a
+  /// duração e o fps da saída — a base de todas as máscaras deste arquivo.
+  String _grayCanvas(ConversionSettings settings, int width, int height) =>
+      'color=white:s=${width}x$height:r=${settings.fps}:'
+      'd=${_seconds(settings.outputDurationSeconds)},format=gray';
+
+  /// Filtro que recorta uma máscara em escala de cinza numa forma de cantos
+  /// arredondados de raio [radius], já com a vírgula que o encadeia ao
+  /// filtro anterior — string vazia quando o raio é zero, porque aí a forma
+  /// é o próprio retângulo. É a mesma expressão para o raio interno (janela
+  /// do vídeo) e para o externo (contorno da moldura); escrevê-la uma vez só
+  /// garante que as duas nunca divirjam.
+  String _roundedLumaChain(double radius) {
+    if (radius <= 0) return '';
+    final r = radius.toStringAsFixed(3);
+    return ",geq=lum='clip(($r+0.5-hypot(max(abs(X-(W-1)/2)-((W-1)/2-$r),0),"
+        "max(abs(Y-(H-1)/2)-((H-1)/2-$r),0)))*255,0,255)'";
+  }
+
+  /// O `[frame_background]` sobre o qual o vídeo é composto.
+  ///
+  /// Com "Fundo transparente" ligado, basta o retângulo na cor da moldura:
+  /// a máscara externa ([_prepareMaskFile]) recorta os cantos depois. Com o
+  /// toggle desligado não há máscara nenhuma, então é aqui que a forma
+  /// arredondada precisa aparecer — cor da moldura dentro dela, preto nos
+  /// cantos que sobram. Sem isso o modo opaco pintava o canvas inteiro com
+  /// a cor da moldura e o arredondamento sumia, divergindo de `paintFrame`.
+  List<String> _frameBackgroundParts(
+    ConversionSettings settings, {
+    required int canvasWidth,
+    required int canvasHeight,
+    required String colorHex,
+    required double outerRadius,
+  }) {
+    final flat =
+        'color=c=$colorHex:s=${canvasWidth}x$canvasHeight:'
+        'r=${settings.fps}:d=${_seconds(settings.outputDurationSeconds)}';
+
+    if (settings.frame.transparentBackground || outerRadius <= 0) {
+      return ['$flat[frame_background]'];
+    }
+
+    return [
+      'color=black:s=${canvasWidth}x$canvasHeight:r=${settings.fps}:'
+          'd=${_seconds(settings.outputDurationSeconds)}[bg_black]',
+      '$flat,format=rgba[frame_color]',
+      '${_grayCanvas(settings, canvasWidth, canvasHeight)}'
+          '${_roundedLumaChain(outerRadius)}[outer_mask]',
+      '[frame_color][outer_mask]alphamerge=shortest=1[frame_rrect]',
+      // `format=rgb`: sem isso o overlay compõe em yuv420 e a borda
+      // arredondada, que é antisserrilhada, perde definição na
+      // subamostragem de croma logo antes de virar paleta de GIF.
+      '[bg_black][frame_rrect]overlay=0:0:shortest=1:format=rgb'
+          '[frame_background]',
+    ];
   }
 
   /// Grafo de filtro completo pronto para `-lavfi` quando a moldura é uma
@@ -323,19 +373,24 @@ class FfmpegService {
   /// de [rasterizeCornerMask]/[_prepareMaskFile], que só existem para os
   /// cantos arredondados da moldura procedural.
   ///
-  /// A transparência final vem da união (`blend=lighten`, ou seja, máximo
-  /// por pixel) de dois mapas em escala de cinza: o canal alfa da própria
-  /// arte (o corpo do mockup) e um retângulo sólido do tamanho exato da
-  /// área de conteúdo (onde o vídeo sempre aparece opaco, mesmo nas barras
-  /// de "Encaixar", que não têm cor de moldura configurável — por isso
-  /// usam preto). [areaMaskInput] é uma fonte `color` do `lavfi`, gerada
-  /// direto no grafo, sem precisar de um arquivo temporário.
+  /// Com "Fundo transparente" ligado, a transparência final vem da união
+  /// (`blend=lighten`, ou seja, máximo por pixel) de dois mapas em escala de
+  /// cinza: o canal alfa da própria arte (o corpo do mockup) e um retângulo
+  /// sólido do tamanho exato da área de conteúdo (onde o vídeo sempre
+  /// aparece opaco, mesmo nas barras de "Encaixar", que não têm cor de
+  /// moldura configurável — por isso usam preto). [areaMaskInput] é uma
+  /// fonte `color` do `lavfi`, gerada direto no grafo, sem precisar de um
+  /// arquivo temporário; só é usada nesse caso, e por isso é opcional.
+  ///
+  /// Com o toggle desligado, nada disso é necessário: o `pad` que centraliza
+  /// o conteúdo já preenche o canvas de preto, que é exatamente o fundo
+  /// opaco pedido, e o grafo termina no `overlay` da arte.
   String _imageFramedGraph(
     ConversionSettings settings,
     VideoInfo video, {
     required String input,
     required String artInput,
-    required String areaMaskInput,
+    String? areaMaskInput,
     required String output,
   }) {
     final contentFilter = buildVideoFilter(settings, video);
@@ -397,6 +452,11 @@ class FfmpegService {
     // continua repetindo o último quadro do vídeo para sempre e a conversão
     // de molduras de imagem fica presa em 0%. O vídeo é a entrada principal,
     // portanto ele também define o fim da composição.
+    if (areaMaskInput == null) {
+      parts.add('[base][art]overlay=0:0:shortest=1:repeatlast=0[$output]');
+      return parts.join(';');
+    }
+
     parts.add(
       '[base][art]overlay=0:0:shortest=1:repeatlast=0,'
       'format=rgba[visual]',
@@ -448,11 +508,14 @@ class FfmpegService {
     return path;
   }
 
-  /// Argumentos completos do FFmpeg para uma moldura de imagem — sempre
-  /// segue o caminho "com transparência" (paleta com
-  /// `reserve_transparent=1` + `paletteuse ... alpha_threshold=128`), já
-  /// que toda moldura de imagem tem alfa real (mesmo padrão de
-  /// [_transparentGifArgs], mas a partir de [_imageFramedGraph]).
+  /// Argumentos completos do FFmpeg para uma moldura de imagem.
+  ///
+  /// Com "Fundo transparente" ligado segue o caminho com alfa (paleta com
+  /// `reserve_transparent=1` + `paletteuse ... alpha_threshold=128`, mesmo
+  /// padrão de [_transparentGifArgs], mas a partir de [_imageFramedGraph]) e
+  /// precisa da terceira entrada, a máscara da área de conteúdo. Desligado,
+  /// o GIF é opaco: essa entrada não existe e a paleta é a comum, sem cor
+  /// reservada para transparência.
   List<String> _imageFramedGifArgs({
     required VideoInfo video,
     required ConversionSettings settings,
@@ -460,6 +523,7 @@ class FfmpegService {
     required String outputPath,
     int? frameLimit,
   }) {
+    final transparent = settings.frame.transparentBackground;
     final (_, _, areaWidth, areaHeight) = settings.imageFrameContentAreaPx(
       video,
     );
@@ -468,10 +532,12 @@ class FfmpegService {
       video,
       input: '0:v',
       artInput: '1:v',
-      areaMaskInput: '2:v',
+      areaMaskInput: transparent ? '2:v' : null,
       output: 'framed',
     );
     final newPalette = settings.palette == PaletteMode.perFrame ? ':new=1' : '';
+    final reserve = transparent ? ':reserve_transparent=1' : '';
+    final alphaThreshold = transparent ? ':alpha_threshold=128' : '';
 
     return [
       '-y',
@@ -487,18 +553,19 @@ class FfmpegService {
       '${settings.fps}',
       '-i',
       artPath,
-      '-f',
-      'lavfi',
-      '-i',
-      'color=white:size=${areaWidth}x$areaHeight:rate=${settings.fps}',
+      if (transparent) ...[
+        '-f',
+        'lavfi',
+        '-i',
+        'color=white:size=${areaWidth}x$areaHeight:rate=${settings.fps}',
+      ],
       '-lavfi',
       '$graph;'
           '[framed]split=2[palette_source][gif_source];'
           '[palette_source]palettegen=max_colors=${settings.colors}'
-          ':stats_mode=${settings.palette.statsMode}'
-          ':reserve_transparent=1[palette];'
+          ':stats_mode=${settings.palette.statsMode}$reserve[palette];'
           '[gif_source][palette]paletteuse=dither=${settings.dither.ffmpegValue}'
-          ':diff_mode=rectangle$newPalette:alpha_threshold=128[out]',
+          ':diff_mode=rectangle$newPalette$alphaThreshold[out]',
       '-map',
       '[out]',
       '-loop',

@@ -66,27 +66,24 @@ class FrameGeometry {
 /// [size], a partir de [settings]. Não desenha o conteúdo (vídeo) — isso é
 /// feito por cima, fora daqui, recortado por [FrameGeometry.contentClip].
 ///
-/// Sem "Fundo transparente": preenche todo o retângulo (inclusive os 4
-/// cantos que sobram fora da forma arredondada) com a cor da moldura — um
-/// cartão colorido com uma janela arredondada para o vídeo. Com "Fundo
-/// transparente": preenche só a forma arredondada, deixando os cantos sem
-/// nada (transparentes no PNG exportado, ou mostrando o que houver atrás,
-/// na prévia).
+/// A moldura em si é sempre a forma arredondada, na cor escolhida. O que o
+/// "Fundo transparente" decide é só o que fica nos 4 cantos que sobram fora
+/// dela: ligado, nada (transparente no PNG exportado, ou o que houver atrás,
+/// na prévia); desligado, preto opaco. Pintar os cantos com a própria cor da
+/// moldura — como era antes — apagava o arredondamento no modo opaco.
 void paintFrame(Canvas canvas, Size size, FrameSettings settings) {
   if (settings.style == FrameStyle.none) return;
 
   final rect = Offset.zero & size;
   final geometry = FrameGeometry.of(size, settings);
-  final paint = Paint()..color = settings.color;
 
-  if (settings.transparentBackground) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(geometry.outerRadius)),
-      paint,
-    );
-  } else {
-    canvas.drawRect(rect, paint);
+  if (!settings.transparentBackground) {
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF000000));
   }
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(rect, Radius.circular(geometry.outerRadius)),
+    Paint()..color = settings.color,
+  );
 }
 
 /// [CustomPainter] que desenha [paintFrame] por cima da prévia do vídeo no

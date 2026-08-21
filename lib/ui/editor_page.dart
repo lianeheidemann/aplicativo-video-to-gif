@@ -14,6 +14,7 @@ import '../services/imported_frame_store.dart';
 import '../services/size_estimator.dart';
 import '../theme_controller.dart';
 import 'converting_page.dart';
+import 'widgets/cropped_view.dart';
 import 'widgets/frame_painter.dart';
 import 'widgets/labeled_section.dart';
 import 'widgets/size_panel.dart';
@@ -34,8 +35,9 @@ enum _CropHandle {
   right,
 }
 
-/// As duas abas do editor: "Ajustar" (configurações de conversão) e
-/// "Frame" (ainda a definir).
+/// As duas abas do editor: "Ajustar" (duração, recorte, velocidade,
+/// resolução, cor — tudo que define o tamanho do GIF) e "Frame" (a moldura
+/// desenhada em volta do vídeo já cortado).
 enum _EditorTab { ajustar, frame }
 
 /// Tela principal de edição: prévia do vídeo, corte de duração, recorte de
@@ -278,7 +280,7 @@ class _EditorPageState extends State<EditorPage> {
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(20, 14, 10, 14),
                             child: SingleChildScrollView(
-                              child: Center(child: _framedPreview()),
+                              child: Center(child: _previewArea()),
                             ),
                           ),
                         ),
@@ -294,7 +296,7 @@ class _EditorPageState extends State<EditorPage> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
                       children: [
-                        _framedPreview(),
+                        _previewArea(),
                         const SizedBox(height: 18),
                         ...sections,
                       ],
@@ -355,15 +357,21 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Seções mostradas na aba "Frame": estilo/cor/espessura/cantos da
-  /// moldura, quando o estilo escolhido força uma proporção fixa (não é
-  /// "Sem moldura" nem "Bordas finas") como o vídeo se encaixa nela, e o
-  /// botão de converter — para não obrigar a voltar para "Ajustar" só para
-  /// iniciar a conversão.
+  /// Seções mostradas na aba "Frame", nesta ordem: a moldura procedural
+  /// (estilo + cor/espessura/cantos), as molduras de imagem, o ajuste do
+  /// conteúdo quando a moldura escolhida tem canvas próprio, o fundo
+  /// transparente e o botão de converter — para não obrigar a voltar para
+  /// "Ajustar" só para iniciar a conversão.
+  ///
+  /// As duas famílias de moldura ficam em caixas separadas de propósito:
+  /// só uma pode estar ativa por vez (ver [_activeFrameStyle]) e cada caixa
+  /// mostra no cabeçalho qual das suas opções está valendo.
   List<Widget> _frameSections() {
     return [
       _frameStyleSection(),
+      _imageFrameSection(),
       if (_settings.frame.hasFixedAspect) _contentFitSection(),
+      _backgroundSection(),
       const SizedBox(height: 4),
       _convertButton(),
     ];
@@ -385,9 +393,35 @@ class _EditorPageState extends State<EditorPage> {
     _update(_settings.copyWith(frame: next));
   }
 
-  /// Envolve [_preview] com a moldura selecionada e mantém a linha do tempo
-  /// como a última camada do conjunto. Assim os controles nunca ficam atrás
-  /// de uma moldura de imagem nem são reduzidos para caber na janela dela.
+  /// A prévia da aba atual. "Ajustar" mostra o vídeo inteiro com as alças de
+  /// recorte (é lá que o tamanho do GIF é definido); "Frame" mostra o vídeo
+  /// já cortado dentro da moldura escolhida, sem nenhum controle de recorte
+  /// — o que a pessoa vê ali é o que vai sair no GIF.
+  Widget _previewArea() =>
+      _tab == _EditorTab.ajustar ? _timelined(_preview()) : _framedPreview();
+
+  /// Coloca a linha do tempo como a última camada por cima de [preview].
+  /// Assim os controles nunca ficam atrás de uma moldura de imagem nem são
+  /// reduzidos para caber na janela dela.
+  Widget _timelined(Widget preview) {
+    final player = _player;
+    if (player == null || !player.value.isInitialized) return preview;
+
+    return Stack(
+      children: [
+        preview,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _previewTimelineOverlay(player),
+        ),
+      ],
+    );
+  }
+
+  /// Envolve o vídeo já cortado ([_croppedPreview]) com a moldura
+  /// selecionada.
   Widget _framedPreview() {
     final frame = _settings.frame;
     final Widget framedVideo;
@@ -395,7 +429,7 @@ class _EditorPageState extends State<EditorPage> {
     if (frame.imageFrame != null) {
       framedVideo = _imageFramedPreview(frame.imageFrame!);
     } else if (frame.style == FrameStyle.none) {
-      framedVideo = _preview();
+      framedVideo = _croppedPreview(rounded: true);
     } else {
       framedVideo = LayoutBuilder(
         builder: (context, constraints) {
@@ -411,37 +445,26 @@ class _EditorPageState extends State<EditorPage> {
             padding: EdgeInsets.all(thickness),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(innerRadius),
-              child: _preview(),
+              child: _croppedPreview(rounded: false),
             ),
           );
 
-          // Sem "Fundo transparente", a moldura é um cartão retangular comum
-          // (só a janela do conteúdo é arredondada). Com o toggle ligado, o
-          // próprio contorno externo também fica arredondado, revelando o
-          // fundo por trás nos 4 cantos.
-          if (!frame.transparentBackground) return bordered;
-          return ClipRRect(
+          // A moldura é sempre a forma arredondada. O que "Fundo
+          // transparente" decide é o que aparece nos 4 cantos que sobram
+          // fora dela: ligado, o que houver atrás; desligado, preto — os
+          // mesmos dois casos de `paintFrame`, que desenha a versão
+          // exportada disso.
+          final rounded = ClipRRect(
             borderRadius: BorderRadius.circular(outerRadius),
             child: bordered,
           );
+          if (frame.transparentBackground) return rounded;
+          return ColoredBox(color: Colors.black, child: rounded);
         },
       );
     }
 
-    final player = _player;
-    if (player == null || !player.value.isInitialized) return framedVideo;
-
-    return Stack(
-      children: [
-        framedVideo,
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _previewTimelineOverlay(player),
-        ),
-      ],
-    );
+    return _timelined(framedVideo);
   }
 
   /// Fundo opaco da linha do tempo, exibido por cima do vídeo e de qualquer
@@ -456,9 +479,16 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Proporção do conteúdo que vai para dentro da moldura: a da janela de
+  /// recorte quando há uma, senão a do vídeo inteiro. É a mesma base de
+  /// [ConversionSettings.contentDimensions], que a exportação usa — sem
+  /// isso a prévia e o GIF divergem sempre que há recorte.
+  double get _contentAspectRatio =>
+      _settings.crop?.aspectRatio ?? _video.aspectRatio;
+
   /// Prévia ao vivo de uma moldura de imagem: a arte (SVG das prontas do
   /// app, ou PNG importado) sempre desenhada na sua proporção nativa (nunca
-  /// distorcida), com o vídeo posicionado e ajustado (conforme
+  /// distorcida), com o vídeo já cortado posicionado e ajustado (conforme
   /// [ContentFitMode]) exatamente dentro da janela de conteúdo
   /// ([ImageFrameAsset.contentRect]) por baixo dela.
   Widget _imageFramedPreview(ImageFrameAsset asset) {
@@ -475,7 +505,7 @@ class _EditorPageState extends State<EditorPage> {
           );
           final fit = resolveContentFit(
             _settings.frame.contentFit,
-            _video.aspectRatio,
+            _contentAspectRatio,
             rect.width / rect.height,
           );
 
@@ -492,8 +522,8 @@ class _EditorPageState extends State<EditorPage> {
                           : BoxFit.contain,
                       child: SizedBox(
                         width: 1000,
-                        height: 1000 / _video.aspectRatio,
-                        child: _preview(),
+                        height: 1000 / _contentAspectRatio,
+                        child: _croppedPreview(rounded: false),
                       ),
                     ),
                   ),
@@ -516,33 +546,30 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Seção "Moldura": duas fileiras de opções — estilos procedurais e
-  /// molduras de imagem prontas —, já que só uma fica ativa por vez, e —
-  /// quando um estilo procedural está ativo — cor, espessura, cantos e o
-  /// switch de fundo transparente.
+  /// O estilo procedural que a fileira de "Moldura" deve marcar. Com uma
+  /// moldura de imagem ativa é sempre "Sem moldura": as duas famílias são
+  /// mutuamente exclusivas, então escolher uma tem que deixar a outra
+  /// visivelmente desativada (ver [_selectFrameStyle]/[_selectImageFrame]).
+  FrameStyle get _activeFrameStyle => _settings.frame.imageFrame == null
+      ? _settings.frame.style
+      : FrameStyle.none;
+
+  /// Seção "Moldura": as opções procedurais e, quando uma delas está ativa,
+  /// os controles de cor, espessura da borda e arredondamento dos cantos.
   Widget _frameStyleSection() {
     final theme = Theme.of(context);
-    final frame = _settings.frame;
+    final style = _activeFrameStyle;
 
     return LabeledSection(
       icon: Icons.smartphone_rounded,
       title: 'Moldura',
-      value: frame.imageFrame?.label ?? frame.style.label,
-      hint: 'Escolha uma opção — apenas uma moldura fica ativa por vez.',
+      value: style.label,
+      hint: 'Escolha uma opção',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _frameStyleThumbnails(),
-          const SizedBox(height: 18),
-          Text(
-            'Molduras de imagem',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _imageFrameThumbnails(),
-          if (frame.style != FrameStyle.none && frame.imageFrame == null) ...[
+          if (style != FrameStyle.none) ...[
             const SizedBox(height: 18),
             _sectionCard(
               children: [
@@ -560,20 +587,7 @@ class _EditorPageState extends State<EditorPage> {
                     alpha: 0.45,
                   ),
                 ),
-                _cornerStyleRow(),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _sectionCard(
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Fundo transparente'),
-                  subtitle: const Text('Remove o fundo fora da moldura'),
-                  value: frame.transparentBackground,
-                  onChanged: (v) =>
-                      _updateFrame(frame.copyWith(transparentBackground: v)),
-                ),
+                _cornerRadiusRow(),
               ],
             ),
           ],
@@ -582,16 +596,52 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
+  /// Seção "Molduras de imagem": as artes prontas do app, as importadas pelo
+  /// usuário e o botão de importar. Fica numa caixa própria porque é a outra
+  /// família de moldura — escolher aqui desativa a de cima, e vice-versa.
+  Widget _imageFrameSection() {
+    return LabeledSection(
+      icon: Icons.image_outlined,
+      title: 'Molduras de imagem',
+      value: _settings.frame.imageFrame?.label ?? FrameStyle.none.label,
+      hint: 'Escolha uma opção',
+      child: _imageFrameThumbnails(),
+    );
+  }
+
+  /// Seção "Fundo transparente": vale para as duas famílias de moldura.
+  /// Fica sempre visível para o estado do GIF não depender de qual caixa
+  /// está aberta.
+  Widget _backgroundSection() {
+    final frame = _settings.frame;
+    return Padding(
+      // Mesma folga inferior dos Cards de [LabeledSection], já que aqui a
+      // caixa é um item da lista, não o conteúdo de uma seção.
+      padding: const EdgeInsets.only(bottom: 16),
+      child: _sectionCard(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Fundo transparente'),
+            subtitle: const Text(
+              'Desligado, a área fora da moldura fica preta',
+            ),
+            value: frame.transparentBackground,
+            onChanged: (v) =>
+                _updateFrame(frame.copyWith(transparentBackground: v)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Linha horizontal com uma miniatura por [FrameStyle], cada uma já
   /// desenhada com o [FramePainter] real do estilo — a miniatura é a
-  /// prévia, não um ícone genérico. Só fica marcada quando não há moldura
-  /// de imagem ativa: as duas famílias são mutuamente exclusivas (ver
-  /// [_selectFrameStyle] e [_selectImageFrame]), e sem essa checagem a
-  /// miniatura "Sem moldura" ficaria marcada ao mesmo tempo que uma
-  /// moldura de imagem, já que selecionar uma sempre zera [FrameStyle]
-  /// para [FrameStyle.none].
+  /// prévia, não um ícone genérico. A marcação segue [_activeFrameStyle],
+  /// então com uma moldura de imagem ativa quem fica marcada aqui é "Sem
+  /// moldura".
   Widget _frameStyleThumbnails() {
-    final frame = _settings.frame;
+    final active = _activeFrameStyle;
     return SizedBox(
       height: 108,
       child: ListView.separated(
@@ -600,21 +650,46 @@ class _EditorPageState extends State<EditorPage> {
         separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final style = FrameStyle.values[index];
-          return _frameStyleThumb(
-            style,
-            selected: frame.imageFrame == null && style == frame.style,
-          );
+          return _frameStyleThumb(style, selected: style == active);
         },
       ),
     );
   }
 
   Widget _frameStyleThumb(FrameStyle style, {required bool selected}) {
+    return _frameThumbShell(
+      key: ValueKey('frameStyleThumb_${style.name}'),
+      label: style.label,
+      selected: selected,
+      padding: const EdgeInsets.all(11),
+      onTap: () => _selectFrameStyle(style),
+      child: _frameStyleGlyph(
+        style,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  /// A casca visual de todas as miniaturas de moldura: quadrado de 62px com
+  /// borda, o selo de check quando marcada e o rótulo embaixo. Só o miolo
+  /// ([child]) muda entre as fileiras — sem isto, as três variações
+  /// (estilo procedural, "Sem moldura" da fileira de imagem, arte de
+  /// imagem) seriam o mesmo layout copiado três vezes.
+  Widget _frameThumbShell({
+    required Key key,
+    required String label,
+    required bool selected,
+    required EdgeInsets padding,
+    required VoidCallback onTap,
+    required Widget child,
+    VoidCallback? onLongPress,
+  }) {
     final theme = Theme.of(context);
     return GestureDetector(
-      key: ValueKey('frameStyleThumb_${style.name}'),
+      key: key,
       behavior: HitTestBehavior.opaque,
-      onTap: () => _selectFrameStyle(style),
+      onTap: onTap,
+      onLongPress: onLongPress,
       child: SizedBox(
         width: 62,
         child: Column(
@@ -625,7 +700,7 @@ class _EditorPageState extends State<EditorPage> {
                 Container(
                   width: 62,
                   height: 62,
-                  padding: const EdgeInsets.all(11),
+                  padding: padding,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
@@ -638,10 +713,7 @@ class _EditorPageState extends State<EditorPage> {
                       width: selected ? 2 : 1,
                     ),
                   ),
-                  child: _frameStyleGlyph(
-                    style,
-                    color: theme.colorScheme.primary,
-                  ),
+                  child: child,
                 ),
                 if (selected)
                   Positioned(
@@ -669,7 +741,7 @@ class _EditorPageState extends State<EditorPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              style.label,
+              label,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -705,7 +777,7 @@ class _EditorPageState extends State<EditorPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
-        final outerRadius = style.defaultCorner.radiusRatio * size.shortestSide;
+        final outerRadius = style.defaultCornerRatio * size.shortestSide;
         final inset = size.shortestSide * 0.22;
         final innerRadius = (outerRadius - inset).clamp(0.0, outerRadius);
         return Stack(
@@ -717,7 +789,7 @@ class _EditorPageState extends State<EditorPage> {
                   style: style,
                   color: color,
                   thicknessAtReference: style.defaultThickness,
-                  corner: style.defaultCorner,
+                  cornerRatio: style.defaultCornerRatio,
                   transparentBackground: true,
                 ),
               ),
@@ -738,26 +810,30 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  /// Aplica o estilo de moldura escolhido, adotando os padrões de canto e
-  /// espessura sugeridos por ele (o usuário ainda pode ajustar cada um
-  /// depois). Cor, ajuste de conteúdo e fundo transparente são mantidos.
-  /// Sempre limpa a moldura de imagem selecionada, já que as duas são
-  /// mutuamente exclusivas.
+  /// Aplica o estilo de moldura escolhido, adotando os padrões de
+  /// espessura e arredondamento sugeridos por ele (o usuário ainda pode
+  /// ajustar cada um nos sliders depois). Cor, ajuste de conteúdo e fundo
+  /// transparente são mantidos. Sempre limpa a moldura de imagem
+  /// selecionada, já que as duas famílias são mutuamente exclusivas.
   void _selectFrameStyle(FrameStyle style) {
     final current = _settings.frame;
     _updateFrame(
       current.copyWith(
         style: style,
-        corner: style.defaultCorner,
+        cornerRatio: style.defaultCornerRatio,
         thicknessAtReference: style.defaultThickness,
         clearImageFrame: true,
       ),
     );
   }
 
-  /// Fileira horizontal com as molduras de imagem prontas do app
-  /// ([ImageFrameLibrary.bundled]), as importadas pelo usuário, e um botão
-  /// "+" para importar mais.
+  /// Fileira horizontal com "Sem moldura", as molduras de imagem prontas do
+  /// app ([ImageFrameLibrary.bundled]), as importadas pelo usuário, e um
+  /// botão "+" para importar mais.
+  ///
+  /// "Sem moldura" na frente é o par da miniatura de mesmo nome na fileira
+  /// procedural: cada fileira mostra sempre exatamente uma opção marcada, e
+  /// é assim que dá para ver que escolher de um lado desativou o outro.
   Widget _imageFrameThumbnails() {
     final selected = _settings.frame.imageFrame;
     final assets = [...ImageFrameLibrary.bundled, ..._importedImageFrames];
@@ -765,94 +841,51 @@ class _EditorPageState extends State<EditorPage> {
       height: 108,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: assets.length + 1,
+        itemCount: assets.length + 2,
         separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          if (index == assets.length) return _importFrameThumb();
-          final asset = assets[index];
+          if (index == 0) return _noImageFrameThumb(selected: selected == null);
+          if (index == assets.length + 1) return _importFrameThumb();
+          final asset = assets[index - 1];
           return _imageFrameThumb(asset, selected: asset.id == selected?.id);
         },
       ),
     );
   }
 
-  Widget _imageFrameThumb(ImageFrameAsset asset, {required bool selected}) {
+  /// Miniatura "Sem moldura" da fileira de molduras de imagem: desmarca a
+  /// arte ativa sem mexer no estilo procedural (que já está em
+  /// [FrameStyle.none] sempre que há uma moldura de imagem selecionada).
+  Widget _noImageFrameThumb({required bool selected}) {
     final theme = Theme.of(context);
-    return GestureDetector(
+    return _frameThumbShell(
+      key: const ValueKey('imageFrameThumb_none'),
+      label: FrameStyle.none.label,
+      selected: selected,
+      padding: const EdgeInsets.all(11),
+      onTap: () =>
+          _updateFrame(_settings.frame.copyWith(clearImageFrame: true)),
+      child: Icon(
+        Icons.crop_free_rounded,
+        size: 22,
+        color: theme.colorScheme.primary.withValues(alpha: 0.6),
+      ),
+    );
+  }
+
+  Widget _imageFrameThumb(ImageFrameAsset asset, {required bool selected}) {
+    return _frameThumbShell(
       key: ValueKey('imageFrameThumb_${asset.id}'),
-      behavior: HitTestBehavior.opaque,
+      label: asset.label,
+      selected: selected,
+      padding: const EdgeInsets.all(6),
       onTap: () => _selectImageFrame(asset),
       onLongPress: asset.source == ImageFrameSource.importedImage
           ? () => _confirmRemoveImportedFrame(asset)
           : null,
-      child: SizedBox(
-        width: 62,
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 62,
-                  height: 62,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: selected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outlineVariant.withValues(
-                              alpha: 0.5,
-                            ),
-                      width: selected ? 2 : 1,
-                    ),
-                  ),
-                  child: asset.source == ImageFrameSource.bundledSvg
-                      ? SvgPicture.asset(
-                          asset.svgAssetPath!,
-                          fit: BoxFit.contain,
-                        )
-                      : Image.file(
-                          File(asset.imageFilePath!),
-                          fit: BoxFit.contain,
-                        ),
-                ),
-                if (selected)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.surface,
-                          width: 2,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.check_rounded,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              asset.label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-      ),
+      child: asset.source == ImageFrameSource.bundledSvg
+          ? SvgPicture.asset(asset.svgAssetPath!, fit: BoxFit.contain)
+          : Image.file(File(asset.imageFilePath!), fit: BoxFit.contain),
     );
   }
 
@@ -1079,7 +1112,10 @@ class _EditorPageState extends State<EditorPage> {
         Row(
           children: [
             Expanded(
-              child: Text('Espessura', style: theme.textTheme.bodyMedium),
+              child: Text(
+                'Espessura da borda',
+                style: theme.textTheme.bodyMedium,
+              ),
             ),
             Text(
               '${thickness.round()}px',
@@ -1103,63 +1139,46 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 
-  Widget _cornerStyleRow() {
+  /// Slider contínuo do arredondamento dos cantos: no mínimo não há
+  /// arredondamento nenhum (canto reto); no máximo
+  /// ([FrameSettings.maxCornerRatio]) a moldura fica completamente
+  /// arredondada. O valor é mostrado como porcentagem desse máximo, não em
+  /// pixels — o arredondamento é proporcional ao canvas, não absoluto.
+  Widget _cornerRadiusRow() {
     final theme = Theme.of(context);
-    final selected = _settings.frame.corner;
+    final frame = _settings.frame;
+    const max = FrameSettings.maxCornerRatio;
+    final ratio = frame.cornerRatio.clamp(0.0, max).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2, bottom: 8),
-          child: Text('Cantos', style: theme.textTheme.bodyMedium),
-        ),
         Row(
           children: [
-            for (final corner in CornerStyle.values) ...[
-              _cornerStyleButton(corner, selected: corner == selected),
-              if (corner != CornerStyle.values.last) const SizedBox(width: 8),
-            ],
+            Expanded(
+              child: Text(
+                'Arredondamento dos cantos',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            Text(
+              '${(ratio / max * 100).round()}%',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _cornerStyleButton(CornerStyle corner, {required bool selected}) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _updateFrame(_settings.frame.copyWith(corner: corner)),
-        child: Container(
-          height: 40,
-          decoration: BoxDecoration(
-            color: selected
-                ? theme.colorScheme.primary.withValues(alpha: 0.16)
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              width: selected ? 1.6 : 1,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: selected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(corner.radiusRatio * 18),
-            ),
-          ),
+        Slider(
+          min: 0,
+          max: max,
+          divisions: 25,
+          value: ratio,
+          label: '${(ratio / max * 100).round()}%',
+          onChanged: (v) => _updateFrame(frame.copyWith(cornerRatio: v)),
         ),
-      ),
+      ],
     );
   }
 
@@ -1255,9 +1274,9 @@ class _EditorPageState extends State<EditorPage> {
     ContentFitMode.expand => Icons.open_in_full_rounded,
   };
 
-  /// Área de prévia: vídeo (ou aviso de codec incompatível) e overlay de
-  /// recorte arrastável. A linha do tempo é adicionada por [_framedPreview]
-  /// depois da moldura, para permanecer sempre visível.
+  /// Prévia da aba "Ajustar": o vídeo inteiro com o overlay de recorte
+  /// arrastável. A linha do tempo é adicionada depois, por [_timelined],
+  /// para permanecer sempre visível.
   Widget _preview() {
     final theme = Theme.of(context);
     final player = _player;
@@ -1317,44 +1336,7 @@ class _EditorPageState extends State<EditorPage> {
           fit: StackFit.expand,
           children: [
             VideoPlayer(player),
-            Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () async {
-                    if (player.value.isPlaying) {
-                      await player.pause();
-                    } else {
-                      final position =
-                          player.value.position.inMilliseconds / 1000;
-                      if (position < _settings.startSeconds ||
-                          position >= _settings.endSeconds) {
-                        await _seekPreview(_settings.startSeconds);
-                      }
-                      await player.play();
-                    }
-                    if (mounted) setState(() {});
-                  },
-                  child: Center(
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        color: Color(0x99000000),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        player.value.isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            _playPauseOverlay(player),
             _CropOverlay(
               video: _video,
               crop: _settings.crop,
@@ -1363,6 +1345,83 @@ class _EditorPageState extends State<EditorPage> {
               freeform: _aspect == _customAspectPreset,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Prévia da aba "Frame": só a janela de recorte, sem véu e sem alças —
+  /// o enquadramento que vai sair no GIF. [rounded] aplica o cartão
+  /// arredondado só quando não há moldura em volta; dentro de uma moldura
+  /// quem arredonda o conteúdo é a própria moldura.
+  Widget _croppedPreview({required bool rounded}) {
+    final player = _player;
+    if (_previewFailed || player == null || !player.value.isInitialized) {
+      return _preview();
+    }
+
+    final content = CroppedView(
+      sourceWidth: _video.width,
+      sourceHeight: _video.height,
+      crop: _settings.crop,
+      child: VideoPlayer(player),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: rounded ? BorderRadius.circular(22) : null,
+        border: rounded
+            ? Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.45),
+              )
+            : null,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(children: [content, _playPauseOverlay(player)]),
+    );
+  }
+
+  /// Botão central de play/pause, compartilhado pelas duas prévias. Voltar
+  /// para o início do trecho quando a posição atual está fora dele evita
+  /// dar play num pedaço que não vai para o GIF.
+  Widget _playPauseOverlay(VideoPlayerController player) {
+    return Positioned.fill(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            if (player.value.isPlaying) {
+              await player.pause();
+            } else {
+              final position = player.value.position.inMilliseconds / 1000;
+              if (position < _settings.startSeconds ||
+                  position >= _settings.endSeconds) {
+                await _seekPreview(_settings.startSeconds);
+              }
+              await player.play();
+            }
+            if (mounted) setState(() {});
+          },
+          child: Center(
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: Color(0x99000000),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                player.value.isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 36,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -2268,18 +2327,25 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   /// Agrupa subseções relacionadas em um card levemente destacado do fundo,
-  /// como em "Suavização de cor" + "Paleta" e em "Repetir para sempre".
+  /// como em "Suavização de cor" + "Paleta", "Repetir para sempre" e "Fundo
+  /// transparente".
+  ///
+  /// É um [Material], não um [Container] com `BoxDecoration`: os
+  /// [SwitchListTile] que moram aqui dentro pintam fundo e ondulação de
+  /// toque no [Material] mais próximo, e uma caixa decorada no meio do
+  /// caminho esconderia esses efeitos (o framework chega a avisar disso em
+  /// tempo de execução).
   Widget _sectionCard({required List<Widget> children}) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
       ),
     );
   }

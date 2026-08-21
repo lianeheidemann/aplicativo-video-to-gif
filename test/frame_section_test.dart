@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_to_gif/models/conversion_settings.dart';
+import 'package:video_to_gif/models/frame_settings.dart';
 import 'package:video_to_gif/models/video_info.dart';
 import 'package:video_to_gif/ui/editor_page.dart';
 
-// Regressão: a seção "Moldura" já teve as duas fileiras (estilos
-// procedurais e molduras de imagem) fundidas numa lista só, o que tornou as
-// molduras de imagem pouco descobríveis. Estes testes garantem que as duas
-// fileiras sempre aparecem juntas, sem exceção, e que a seleção de uma
-// nunca deixa a outra com uma marcação de "ativa" incorreta.
+// A aba "Frame" tem duas famílias de moldura em caixas separadas — as
+// procedurais ("Moldura") e as artes prontas ("Molduras de imagem") — e só
+// uma pode estar ativa por vez. Cada fileira tem a sua própria miniatura
+// "Sem moldura" e mostra sempre exatamente uma opção marcada: é assim que se
+// vê que escolher de um lado desativou o outro. Estes testes garantem que as
+// duas fileiras sempre aparecem, sem exceção, e que essa exclusão mútua vale
+// nos dois sentidos.
 const _video = VideoInfo(
   path: '/tmp/video-inexistente-para-teste.mp4',
   fileName: 'video.mp4',
@@ -19,6 +22,11 @@ const _video = VideoInfo(
   bitrateBps: 1000000,
   fileSizeBytes: 1000000,
   codec: 'h264',
+);
+
+Finder _checkIn(String key) => find.descendant(
+  of: find.byKey(ValueKey(key)),
+  matching: find.byIcon(Icons.check_rounded),
 );
 
 Future<void> _openFrameSection(WidgetTester tester) async {
@@ -42,12 +50,19 @@ Future<void> _openFrameSection(WidgetTester tester) async {
 
   await tester.tap(find.text('Frame'));
   await tester.pump();
+  // As duas famílias moram em seções recolhidas separadas; abrir as duas.
   await tester.tap(find.text('Moldura'));
+  await tester.pump();
+  await tester.tap(find.text('Molduras de imagem'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
 }
 
 void main() {
+  test('o fundo transparente vem ligado por padrão', () {
+    expect(const FrameSettings().transparentBackground, isTrue);
+  });
+
   testWidgets('as duas fileiras de moldura aparecem juntas, sem erro', (
     tester,
   ) async {
@@ -56,10 +71,10 @@ void main() {
     expect(tester.takeException(), isNull);
     for (final key in [
       'frameStyleThumb_none',
-      'frameStyleThumb_slim',
-      'frameStyleThumb_classic',
       'frameStyleThumb_thin',
-      'frameStyleThumb_story9x16',
+      'frameStyleThumb_medium',
+      'frameStyleThumb_thick',
+      'imageFrameThumb_none',
       'imageFrameThumb_bundled_transparente',
       'imageFrameThumb_bundled_graphite',
       'imageFrameThumb_bundled_titanio',
@@ -75,41 +90,66 @@ void main() {
     }
   });
 
-  testWidgets(
-    'selecionar uma moldura de imagem atualiza o resumo e desmarca "Sem moldura"',
-    (tester) async {
-      await _openFrameSection(tester);
+  testWidgets('escolher numa fileira volta a outra para "Sem moldura"', (
+    tester,
+  ) async {
+    await _openFrameSection(tester);
 
-      final semMoldura = find.byKey(const ValueKey('frameStyleThumb_none'));
-      expect(
-        find.descendant(
-          of: semMoldura,
-          matching: find.byIcon(Icons.check_rounded),
-        ),
-        findsOneWidget,
-        reason: 'antes de escolher, "Sem moldura" começa marcada',
-      );
+    expect(
+      _checkIn('frameStyleThumb_none'),
+      findsOneWidget,
+      reason: 'sem nada escolhido, as duas fileiras começam em "Sem moldura"',
+    );
+    expect(_checkIn('imageFrameThumb_none'), findsOneWidget);
 
-      await tester.tap(
-        find.byKey(const ValueKey('imageFrameThumb_bundled_titanio')),
-      );
-      await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('imageFrameThumb_bundled_titanio')),
+    );
+    await tester.pump();
 
-      expect(
-        find.descendant(
-          of: semMoldura,
-          matching: find.byIcon(Icons.check_rounded),
-        ),
-        findsNothing,
-        reason:
-            '"Sem moldura" não pode continuar marcada com uma moldura de '
-            'imagem ativa',
-      );
-      expect(
-        find.text('Titânio'),
-        findsWidgets,
-        reason: 'o resumo da seção deve refletir a moldura de imagem ativa',
-      );
-    },
-  );
+    expect(
+      _checkIn('imageFrameThumb_bundled_titanio'),
+      findsOneWidget,
+      reason: 'a moldura de imagem escolhida fica marcada',
+    );
+    expect(
+      _checkIn('imageFrameThumb_none'),
+      findsNothing,
+      reason: '"Sem moldura" da fileira de imagem sai de marcada',
+    );
+    expect(
+      _checkIn('frameStyleThumb_none'),
+      findsOneWidget,
+      reason: 'a fileira de moldura volta para "Sem moldura"',
+    );
+    expect(
+      find.text('Titânio'),
+      findsWidgets,
+      reason: 'o resumo da seção deve refletir a moldura de imagem ativa',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('frameStyleThumb_medium')));
+    await tester.pump();
+
+    expect(
+      _checkIn('frameStyleThumb_medium'),
+      findsOneWidget,
+      reason: 'a moldura procedural escolhida fica marcada',
+    );
+    expect(
+      _checkIn('frameStyleThumb_none'),
+      findsNothing,
+      reason: '"Sem moldura" da fileira procedural sai de marcada',
+    );
+    expect(
+      _checkIn('imageFrameThumb_bundled_titanio'),
+      findsNothing,
+      reason: 'a moldura de imagem é desativada',
+    );
+    expect(
+      _checkIn('imageFrameThumb_none'),
+      findsOneWidget,
+      reason: 'a fileira de imagem volta para "Sem moldura"',
+    );
+  });
 }

@@ -1,7 +1,36 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:video_to_gif/models/frame_settings.dart';
 import 'package:video_to_gif/ui/widgets/frame_painter.dart';
+
+const _side = 64;
+const _frameColor = ui.Color(0xFFC9A8FF);
+
+/// Rasteriza [settings] num quadrado de [_side] px e devolve os pixels já
+/// convertidos para ARGB, na mesma ordem de [ui.Color.toARGB32].
+Future<List<int>> _argbPixels(FrameSettings settings) async {
+  final png = await FramePainter.rasterize(_side, _side, settings);
+  final codec = await ui.instantiateImageCodec(png);
+  final frame = await codec.getNextFrame();
+  try {
+    final data = await frame.image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
+    return [
+      for (var i = 0; i < _side * _side * 4; i += 4)
+        (data!.getUint8(i + 3) << 24) |
+            (data.getUint8(i) << 16) |
+            (data.getUint8(i + 1) << 8) |
+            data.getUint8(i + 2),
+    ];
+  } finally {
+    frame.image.dispose();
+    codec.dispose();
+  }
+}
+
+int _at(List<int> pixels, int x, int y) => pixels[y * _side + x];
 
 void main() {
   test('máscara arredondada mantém transparência e suaviza a borda', () async {
@@ -31,5 +60,44 @@ void main() {
       frame.image.dispose();
       codec.dispose();
     }
+  });
+
+  // A moldura é sempre a forma arredondada, na cor escolhida. O toggle
+  // "Fundo transparente" decide só o que sobra nos 4 cantos fora dela.
+  // Antes, o modo opaco pintava o canvas inteiro com a cor da moldura e o
+  // arredondamento simplesmente não aparecia no GIF.
+  group('cantos fora da moldura', () {
+    const rounded = FrameSettings(
+      style: FrameStyle.thick,
+      color: _frameColor,
+      thicknessAtReference: 18,
+      cornerRatio: FrameSettings.maxCornerRatio,
+    );
+
+    test('com fundo transparente, ficam sem nada', () async {
+      final pixels = await _argbPixels(
+        rounded.copyWith(transparentBackground: true),
+      );
+
+      expect(_at(pixels, 0, 0) >> 24, 0, reason: 'canto transparente');
+      expect(_at(pixels, 32, 32), _frameColor.toARGB32());
+    });
+
+    test('sem fundo transparente, ficam pretos opacos', () async {
+      final pixels = await _argbPixels(
+        rounded.copyWith(transparentBackground: false),
+      );
+
+      expect(
+        _at(pixels, 0, 0),
+        0xFF000000,
+        reason: 'o canto tem que ser preto opaco, não a cor da moldura',
+      );
+      expect(
+        _at(pixels, 32, 32),
+        _frameColor.toARGB32(),
+        reason: 'dentro da forma arredondada continua a cor da moldura',
+      );
+    });
   });
 }
